@@ -159,6 +159,18 @@ public class ProbFunTree<T> {
 			p.clearProbs();
 		}
 	}
+	
+	/** Clears the history, but not the probabilities,
+	 *  so the next generation is way more likely to produce favorable results
+	 *  after good() or bad() have been called one or more times.
+	 *  Due to propagation of past values, history may not produce favorable results.
+	 */
+	public void clearHistory() {
+		this.previousElement = null;
+		for(ProbFunTree<T> t : children.values()) {
+			t.clearHistory();
+		}
+	}
 
 	/**        Adds an element to the parent of this ProbFunTree, making the probability equal to 1.0/n
 	 *         where n is the number of elements contained in the parent of this ProbFunTree.

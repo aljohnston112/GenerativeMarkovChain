@@ -10,7 +10,7 @@ import markov.ProbFunTree;
 public class TestProbFunTree {
 
 	public static void main(String[] args) {
-
+		/*
 		testConstructor();
 		testClearProbs();
 		testAddToAll();
@@ -24,8 +24,24 @@ public class TestProbFunTree {
 		testParentSize();
 		testSize();
 		testClone();
+		*/
+		//testClearHistory();
 	}
 	
+	private static void testClearHistory() {
+		System.out.print("Clear History Test:\n");
+		System.out.print("Check by debug\n");
+		Set<Integer> choices = new HashSet<Integer>();
+		choices.add(0);choices.add(1);
+		int layers = 3;
+		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
+		for(int i = 0; i < layers; i++) {
+			pf.fun();
+		}
+		pf.clearHistory();
+		System.out.print("\n");
+	}
+
 	private static void testClone() {
 		System.out.print("Clone Test:\n");
 		Set<Integer> choices = new HashSet<Integer>();

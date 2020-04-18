@@ -4,4 +4,4 @@
  * @author Alexander Johnston
  * @since  Copyright 2020
  */
-package markov;
+package tree;

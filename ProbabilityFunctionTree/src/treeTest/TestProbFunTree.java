@@ -1,23 +1,25 @@
-package markovTest;
+package treeTest;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import markov.ProbFunTree;
+import tree.ProbFunTree;
 
 public class TestProbFunTree {
 
 	public static void main(String[] args) {
-		
+		/*
 		testConstructor();
 		testClearProbs();
 		testAddToAll();
 		testAddToAll2();
 		testRemoveFromAll();
+		*/
 		testPurgeAll();
 		testPurgeAll2();
+		/*
 		testGood();
 		testBad();
 		testFun();
@@ -28,6 +30,7 @@ public class TestProbFunTree {
 		testConstructorWithProbs();
 		testAddLayer();
 		testAddLayer2();
+		*/
 	}
 
 	private static void testAddLayer2() {

@@ -1,10 +1,10 @@
-package markov;
+package tree;
 
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -20,10 +20,12 @@ import java.util.stream.Collectors;
  * @since  Copyright 2020
  * @param  <T> The type of the elements that will be picked from
  */
-public class ProbFunTree<T> {
+public class ProbFunTree<T> implements Serializable {
+
+	private static final long serialVersionUID = -6556634307811294014L;
 
 	// The random number generator
-	private ThreadLocalRandom tlr = ThreadLocalRandom.current();
+	private transient ThreadLocalRandom tlr = ThreadLocalRandom.current();
 
 	// The set of elements to be picked from, mapped to the probabilities of getting picked 
 	private Map<T, Double> probMap = new TreeMap<T, Double>();
@@ -210,7 +212,7 @@ public class ProbFunTree<T> {
 	 * @return the Map of element-probability pairs that make up the parent of this ProbFunTree. 
 	 *         Any changes in the returned Map will be reflected in this ProbFunTree.
 	 */
-	Map<T, Double> getParentMap() {
+	public Map<T, Double> getParentMap() {
 		return probMap;
 	}
 
@@ -219,7 +221,7 @@ public class ProbFunTree<T> {
 	 * @return the Map of element-ProbFunTree pairs that make up the children of this ProbFunTree. 
 	 *         Any changes in the returned Map will be reflected in this ProbFunTree.
 	 */
-	Map<T, ProbFunTree<T>> getChildMap() {
+	public Map<T, ProbFunTree<T>> getChildMap() {
 		return children;
 	}
 
@@ -593,11 +595,7 @@ public class ProbFunTree<T> {
 		if(parentSize() == 1 || (max <= percent && min == max)) {
 			return;
 		} else {
-			Map<T, Double> m = probMap.entrySet().stream().
-					sorted(Entry.comparingByValue()).
-					collect(Collectors.toMap(Entry::getKey, Entry::getValue,
-							(e1, e2) -> e1, LinkedHashMap::new));
-			for(Entry<T, Double> e : m.entrySet()) {
+			for(Entry<T, Double> e : probMap.entrySet()) {
 				if(e.getValue() <= min && e.getValue() < max-roundingError) {
 					remove(e.getKey());
 					if(parentSize() == 1) {
@@ -630,7 +628,7 @@ public class ProbFunTree<T> {
 		}
 	}
 
-	/**        Adjust the probabilities to make element more likely to be returned when fun() is called.
+	/**        Adjust the probability to make element more likely to be returned when fun() is called from the parent of this ProbFunTree.
 	 * @param  element as the element to make appear more often
 	 * @param  percent as the percentage between 0 and 1 (exclusive), 
 	 *         of the probability of getting element to add to the probability.
@@ -638,7 +636,7 @@ public class ProbFunTree<T> {
 	 * @throws NullPointerException if element is null.
 	 * @throws IllegalArgumentException if the percent isn't between 0 and 1 exclusive.
 	 */
-	private synchronized double good(T element, double percent) {
+	public synchronized double good(T element, double percent) {
 		Objects.requireNonNull(element);
 		if(percent >= 1.0 || percent <= 0.0) {
 			throw new IllegalArgumentException("percent passed to good() is not between 0.0 and 1.0 (exclusive)");
@@ -695,7 +693,7 @@ public class ProbFunTree<T> {
 		children.get(l.remove(0)).good(l, percent);
 	}
 
-	/**        Adjust the probabilities to make element less likely to be returned when fun() is called.
+	/**        Adjust the probability to make element less likely to be returned when fun() is called from the parent of this ProbFunTree.
 	 * @param  element as the element to make appear less often
 	 * @param  percent as the percentage between 0 and 1 (exclusive), 
 	 *         of the probability of getting element to subtract from the probability.
@@ -703,7 +701,7 @@ public class ProbFunTree<T> {
 	 * @throws NullPointerException if element is null.
 	 * @throws IllegalArgumentException if the percent isn't between 0 and 1 exclusive.
 	 */
-	private synchronized double bad(T element, double percent) {
+	public synchronized double bad(T element, double percent) {
 		Objects.requireNonNull(element);
 		if(percent >= 1.0 || percent <= 0.0) {
 			throw new IllegalArgumentException("percent passed to good() is not between 0.0 and 1.0 (exclusive)");
@@ -796,6 +794,9 @@ public class ProbFunTree<T> {
 	 * @return the next generated value.
 	 */
 	private T nextValue() {
+		if(tlr == null) {
+			tlr = ThreadLocalRandom.current();
+		}
 		double randomChoice = tlr.nextDouble();
 		double sumOfProbabilities = 0.0;
 		Iterator<Entry<T, Double>> entries = probMap.entrySet().iterator();

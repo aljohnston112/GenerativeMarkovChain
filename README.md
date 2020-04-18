@@ -1,6 +1,3 @@
 # GenerativeMarkovChain
 
-Known issues:
-
-Spamming bad() or good() a bunch may set some probabilities to 0 and 1.
- 
+A java project for creating probability function trees that have methods to respond to feedback, add or remove elements, and free up memory by purging lowest probability elements.

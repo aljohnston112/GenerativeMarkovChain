@@ -15,8 +15,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
- *         A class where a set of elements are picked from randomly to decide the next element that will be the output of fun()
- *         based on the previously returned elements.
+ *         A tree node where a set of elements are picked from randomly to decide which child will randomly produce the next element when fun() is called.
  * @author Alexander Johnston
  * @since  Copyright 2020
  * @param  <T> The type of the elements that will be picked from
@@ -40,20 +39,22 @@ public class ProbFunTree<T> {
 
 	private int layers;
 
+	private double roundingError = 0;
+
 	/**        Creates a ProbFunTree where there is an equal chance of getting any element from choices when fun() in called.
 	 *         Note that the elements in choices passed into this constructor will NOT be copied and will be added by reference.
 	 * @param  choices as the choices to be randomly picked from.
 	 * @param  layers as the number of layers for this ProbFunTree to generate.
 	 *         Ex: for choices[0, 1] and layers=2, the following data structure will be made,
-	 *         [[0->0.5][1->0.5]] and [[0->[[0->0.5][1->0.5]]][1->[[0->0.5][1->0.5]]]].
+	 *         <br>[[0->0.5][1->0.5]] where the first choice is propagated like so [[0->[[0->0.5][1->0.5]]][1->[[0->0.5][1->0.5]]]].
 	 * @throws NullPointerException if choices is null.
-	 * @throws IllegalArgumentException if there aren't at least two elements in choices or 
+	 * @throws IllegalArgumentException if there isn't at least one element in choices or 
 	 *         layers is not at least 1.
 	 */
 	public ProbFunTree(Set<T> choices, int layers){
 		Objects.requireNonNull(choices);
-		if(choices.size() < 2) 
-			throw new IllegalArgumentException("Must have more than 1 element in the choices passed to the ProbFunTree constructor\n");
+		if(choices.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to the ProbFunTree constructor\n");
 		if(layers < 1) {
 			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
 		}
@@ -71,17 +72,71 @@ public class ProbFunTree<T> {
 		}
 	}
 
-	/**       Private constructor for tracking parent nodes in the ProbFunTree.
-	 * @param choices as the elements for the ProbFunTree to generate.
-	 * @param layers as the number of layers to make the ProbFunTree.
-	 * @param parent as the parent node in the ProbFunTree.
+	/**        Creates a ProbFunTree where getting any entry from choices is based on the probabilities passed in via probs when fun() in called.
+	 *         The entries in choices passed into this constructor will NOT be copied and will be added by reference.
+	 *         choices must not have duplicate values.
+	 * @param  choices as the choices to be randomly picked from.
+	 * @param  probs as the probability of getting each entry in the list that must addd up to 1.0 using double addition.
+	 * @param  layers as the number of layers for this ProbFunTree to generate.
+	 *         Ex: for choices[0, 1] and layers=2, the following data structure will be made,
+	 *         <br>[[0->0.5][1->0.5]] where the first choice is propagated like so [[0->[[0->0.5][1->0.5]]][1->[[0->0.5][1->0.5]]]].
+	 * @throws NullPointerException if choices or probs is null.
+	 * @throws IllegalArgumentException if there isn't at least one entry in choices, 
+	 *         choices contains duplicate entries, probs does not contain the same number of entries as choices, 
+	 *         probs entries do not add up to 1.0 using double addition, or 
+	 *         layers is not at least 1.
+	 */
+	public ProbFunTree(List<T> choices, double[] probs, int layers){
+		Objects.requireNonNull(choices);
+		Objects.requireNonNull(probs);
+		if(choices.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to the ProbFunTree constructor\n");
+		if(layers < 1) {
+			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
+		}
+		if(choices.size() != probs.length) {
+			throw new IllegalArgumentException("probs must have the same number of entries as choices when passed to the ProbFunTree constructor\n");
+		}
+		for(T t : choices) {
+			if(choices.indexOf(t) != choices.lastIndexOf(t)) {
+				throw new IllegalArgumentException("choices passed into the ProbFunTree constructor must not contain duplicates");
+			}
+		}
+		double sum = 0;
+		for(double d : probs) {
+			sum += d;
+		}
+		if(sum != 1.0) {
+			throw new IllegalArgumentException("probs must have entries that add up to 1.0 using double addition when passed to the ProbFunTree constructor\n");
+		}
+		// Invariants secured
+		this.layers = layers;
+		int i = 0;
+		for(T choice : choices) {
+			this.probMap.put(choice, probs[i]);
+			i++;
+		}
+		fixProbSum();
+		layers--;
+		if(layers != 0) {
+			for(T t: probMap.keySet()) {
+				children.put(t, new ProbFunTree<T>(choices, probs, layers, this));
+			}
+		}
+	}
+
+	/**        Private constructor for tracking parent nodes in the ProbFunTree.
+	 * @param  choices as the elements for the ProbFunTree to generate.
+	 * @param  layers as the number of layers to make the ProbFunTree.
+	 * @param  parent as the parent node in the ProbFunTree.
 	 * @throws NullPointerException if choices is null.
-	 * @throws IllegalArgumentException if there aren't at least two elements in choices or 
-	 *         layers is not at least 1.	 */
+	 * @throws IllegalArgumentException if there isn't at least one element in choices or 
+	 *         layers is not at least 1.	 
+	 */
 	private ProbFunTree(Set<T> choices, int layers, ProbFunTree<T> parent){
 		Objects.requireNonNull(choices);
-		if(choices.size() < 2) 
-			throw new IllegalArgumentException("Must have more than 1 element in the choices passed to the ProbFunTree constructor\n");
+		if(choices.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to the ProbFunTree constructor\n");
 		if(layers < 1) {
 			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
 		}
@@ -96,6 +151,56 @@ public class ProbFunTree<T> {
 		if(layers != 0) {
 			for(T t: probMap.keySet()) {
 				children.put(t, new ProbFunTree<T>(probMap.keySet(), layers, this));
+			}
+		}
+	}
+
+	/**        Private constructor for tracking parent nodes in the ProbFunTree.
+	 * @param  choices as the elements for the ProbFunTree to generate.
+	 * @param  probs as the probability of getting each entry in the list that must add up to 1.0 using double addition.
+	 * @param  layers as the number of layers to make the ProbFunTree.
+	 * @param  parent as the parent node in the ProbFunTree.
+	 * @throws NullPointerException if choices or probs is null.
+	 * @throws IllegalArgumentException if there isn't at least one entry in choices, 
+	 *         choices contains duplicate entries, probs does not contain the same number of entries as choices,
+	 *         probs entries do not add up to 1.0 using double addition. or
+	 *         layers is not at least 1.
+	 */
+	private ProbFunTree(List<T> choices, double[] probs, int layers, ProbFunTree<T> parent){
+		Objects.requireNonNull(choices);
+		if(choices.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to the ProbFunTree constructor\n");
+		if(layers < 1) {
+			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
+		}
+		if(choices.size() != probs.length) {
+			throw new IllegalArgumentException("probs must have the same number of entries as choices when passed to the ProbFunTree constructor\n");
+		}
+		for(T t : choices) {
+			if(choices.indexOf(t) != choices.lastIndexOf(t)) {
+				throw new IllegalArgumentException("choices passed into the ProbFunTree constructor must not contain duplicates");
+			}
+		}
+		double sum = 0;
+		for(double d : probs) {
+			sum += d;
+		}
+		if(sum != 1.0) {
+			throw new IllegalArgumentException("probs must have entries that add up to 1.0 using double addition when passed to the ProbFunTree constructor\n");
+		}
+		// Invariants secured
+		this.layers = layers;
+		this.parent = parent;
+		int i = 0;
+		for(T choice : choices) {
+			this.probMap.put(choice, probs[i]);
+			i++;
+		}
+		fixProbSum();
+		layers--;
+		if(layers != 0) {
+			for(T t: probMap.keySet()) {
+				children.put(t, new ProbFunTree<T>(choices, probs, layers, this));
 			}
 		}
 	}
@@ -147,7 +252,8 @@ public class ProbFunTree<T> {
 	 */
 	private void fixProbSum() {
 		Entry<T, Double> firstProb = this.probMap.entrySet().iterator().next();
-		firstProb.setValue(firstProb.getValue() + 1.0-probSum());		
+		roundingError  = 1.0-probSum();
+		firstProb.setValue(firstProb.getValue() + roundingError);		
 	}
 
 	/** Sets the probabilities to there being an equal chance of getting any element from this ProbFunTree
@@ -159,11 +265,11 @@ public class ProbFunTree<T> {
 			p.clearProbs();
 		}
 	}
-	
-	/** Clears the history, but not the probabilities,
+
+	/** Due to propagation of past values, history may not produce favorable results, therefore this method
+	 *  clears the history, but not the probabilities produced by feedback,
 	 *  so the next generation is way more likely to produce favorable results
 	 *  after good() or bad() have been called one or more times.
-	 *  Due to propagation of past values, history may not produce favorable results.
 	 */
 	public void clearHistory() {
 		this.previousElement = null;
@@ -181,14 +287,17 @@ public class ProbFunTree<T> {
 		Objects.requireNonNull(element);
 		// Invariants secured
 		double probability = 1.0/(probMap.size());
-		probMap.put(element, probability);
-
+		if(!probMap.containsKey(element)) {
+			probMap.put(element, probability);
+		}
 		scaleProbs();
 	}
 
-	/**        Adds an element to the parent and all it's children in this ProbFunTree, making the probability equal to 1.0/n
+	/**        Adds an element to every node in this ProbFunTree, making the probability equal to 1.0/n
 	 *         where n is the number of elements contained in this ProbFunTree.
-	 * @param  element as the element to add to the parent and all it's children.
+	 *         If the element already exists in a node, then the element will not be updated.
+	 *         In order to overwrite old element probabilities, you must remove the element using removeFromAll().
+	 * @param  element as the element to add to every node.
 	 * @throws NullPointerException if element is null.
 	 */
 	public void addToAll(T element) {
@@ -202,7 +311,6 @@ public class ProbFunTree<T> {
 			p.addToAll(element);
 		}
 	}
-
 
 	/**        Adds an element to the parent of this ProbFunTree with the specified probability.
 	 * @param  element as the element to add to the parent of this ProbFunTree.
@@ -223,12 +331,16 @@ public class ProbFunTree<T> {
 				e.setValue(e.getValue()*scale);
 			}
 		}
-		probMap.put(element, percent);
+		if(!probMap.containsKey(element)) {
+			probMap.put(element, percent);
+		}
 		scaleProbs();
 	}
 
-	/**        Adds an element to the parent and all it's children in this ProbFunTree with the specified probability.
-	 * @param  element as the element to add to the parent and all it's children.
+	/**        Adds an element to every node in this ProbFunTree with the specified probability.
+	 *         If the element already exists in a node, then the element will not be updated.
+	 *         In order to overwrite old element probabilities, you must remove the element using removeFromAll().
+	 * @param  element as the element to add to every node.
 	 * @param  percent between 0 and 1 exclusive, as the chance of 
 	 *         the parent and all it's children of this ProbFunTree returning element.
 	 * @throws NullPointerException if element is null.
@@ -250,14 +362,144 @@ public class ProbFunTree<T> {
 
 	}
 
-	/**        Removes an element from the parent of this ProbFunTree.
-	 * @param  element as the element to remove form the parent of this ProbFunTree.
+	/**        Adds elements to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
+	 *         making the probability of each element added equal to 1.0/n, 
+	 *         where n is the number of elements in choices.
+	 * @param  choices as the elements to add to this ProbFunTree's descendants that have the greatest depth.
+	 * @throws NullPointerException if choices is null.
+	 * @throws IllegalArgumentException if choices doesn't have at least one item.
+	 */
+	public void addLayer(Set<T> choices) {
+		Objects.requireNonNull(choices);
+		if(choices.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to addLayer\n");
+		// Invariants secured
+		addLayer(this, choices);
+		incrementLayer();
+	}
+
+	private void incrementLayer() {
+		if(!children.isEmpty()) {
+			layers++;
+			for(ProbFunTree<T> pf : children.values()) {
+				pf.incrementLayer();
+			}
+		}
+	}
+
+	/**        Adds elements to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
+	 *         making the probability of each element added equal to 1.0/n, 
+	 *         where n is the number of elements in choices.
+	 * @param  parent as the parent ProbFunTree to check the children of 
+	 *         to see if they are the descendants that have the greatest depth.
+	 *         If they are, the layer will be added.
+	 * @param  choices as the elements to add to this ProbFunTree's descendants that have the greatest depth.
+	 * @throws NullPointerException if choices or parent is null.
+	 * @throws IllegalArgumentException if choices doesn't have at least one item.
+	 */
+	private void addLayer(ProbFunTree<T> parent, Set<T> choices) {
+		Objects.requireNonNull(parent);
+		Objects.requireNonNull(choices);
+		if(choices.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to addLayer\n");
+		// Invariants secured
+		for(ProbFunTree<T> child : parent.children.values()) {
+			if(child.children.isEmpty()) {
+				for(T t : child.probMap.keySet()) {
+					child.children.put(t, new ProbFunTree<T>(choices, 1, parent));
+				}
+			} else {
+				addLayer(child, choices);
+			}
+		}
+	}
+
+	/**        Adds elements to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
+	 *         making the probability of each element added equal to the probabilities in probs.
+	 * @param  choices as the elements to add to this ProbFunTree's descendants that have the greatest depth.
+	 * @param  probs as the probabilities that must add up to 1.0 using double addition.
+	 * @throws NullPointerException if choices or probs is null.
+	 * @throws IllegalArgumentException if choices doesn't have at least one item, 
+	 *         choices does not contain the same number of entries as probs, 
+	 *         choices contains duplicate elements, 
+	 *         or probs don't add up to 1.0 using double addition.
+	 */
+	public void addLayer(List<T> choices, double[] probs) {
+		Objects.requireNonNull(choices);
+		Objects.requireNonNull(probs);
+		if(choices.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to addLayer\n");
+		if(choices.size() != probs.length) {
+			throw new IllegalArgumentException("probs must have the same number of entries as choices when passed to addLayer\n");
+		}
+		for(T t : choices) {
+			if(choices.indexOf(t) != choices.lastIndexOf(t)) {
+				throw new IllegalArgumentException("choices passed into addLayer must not contain duplicates");
+			}
+		}
+		double sum = 0;
+		for(double d : probs) {
+			sum += d;
+		}
+		if(sum != 1.0) {
+			throw new IllegalArgumentException("probs must have entries that add up to 1.0 using double addition when passed to addLayer\n");
+		}
+		// Invariants secured
+		addLayer(this, choices, probs);
+		incrementLayer();
+	}
+
+	/**        Adds elements to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
+	 *         making the probability of each element added equal to the probabilities in probs.
+	 * @param  choices as the elements to add to this ProbFunTree's descendants that have the greatest depth.
+	 * @param  probs as the probabilities that must add up to 1.0 using double addition.
+	 * @throws NullPointerException if choices, parent, or probs is null.
+	 * @throws IllegalArgumentException if choices doesn't have at least one item, 
+	 *         choices does not contain the same number of entries as probs, 
+	 *         choices contains duplicate elements, 
+	 *         or probs don't add up to 1.0 using double addition.
+	 */
+	private void addLayer(ProbFunTree<T> parent, List<T> choices, double[] probs) {
+		Objects.requireNonNull(choices);
+		Objects.requireNonNull(probs);
+		Objects.requireNonNull(parent);
+		if(choices.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to addLayer\n");
+		if(choices.size() != probs.length) {
+			throw new IllegalArgumentException("probs must have the same number of entries as choices when passed to addLayer\n");
+		}
+		for(T t : choices) {
+			if(choices.indexOf(t) != choices.lastIndexOf(t)) {
+				throw new IllegalArgumentException("choices passed into addLayer must not contain duplicates");
+			}
+		}
+		double sum = 0;
+		for(double d : probs) {
+			sum += d;
+		}
+		if(sum != 1.0) {
+			throw new IllegalArgumentException("probs must have entries that add up to 1.0 using double addition when passed to addLayer\n");
+		}
+		// Invariants secured
+		for(ProbFunTree<T> child : parent.children.values()) {
+			if(child.children.isEmpty()) {
+				for(T t : child.probMap.keySet()) {
+					child.children.put(t, new ProbFunTree<T>(choices, probs, 1, parent));
+				}
+			} else {
+				addLayer(child, choices, probs);
+			}
+		}
+	}
+
+	/**        Removes an element from the parent of this ProbFunTree unless there is only one element.
+	 * @param  element as the element to remove from the parent of this ProbFunTree.
 	 * @return True if this ProbFunTree's parent contained the element and it was removed, else false.
 	 * @throws NullPointerException if element is null.
 	 */
 	private boolean remove(T element) {
 		Objects.requireNonNull(element);
-		if(parentSize() == 2) {
+		if(parentSize() == 1) {
 			return false;
 		}
 		// Invariants secured
@@ -270,14 +512,14 @@ public class ProbFunTree<T> {
 		return true;
 	}
 
-	/**        Removes an element from the parent and it's children in this ProbFunTree.
-	 *         If an node in the tree has only 2 elements, then element will not be removed that that specific node.
-	 * @param  element as the element to remove from the parent and it's children in this ProbFunTree.
+	/**        Removes an element from every node in this ProbFunTree.
+	 *         If an node in the tree has only 1 element, then element will not be removed that that specific node.
+	 * @param  element as the element to remove from every node in this ProbFunTree.
 	 * @throws NullPointerException if element is null.
 	 */
 	public void removeFromAll(T element) {
 		Objects.requireNonNull(element);
-		if(parentSize() != 2) {
+		if(parentSize() != 1) {
 			remove(element);
 		}
 		// Invariants secured
@@ -287,14 +529,20 @@ public class ProbFunTree<T> {
 	}
 
 	/** Removes elements with the lowest probability from the parent of this ProbFunTree.
-	 *  If parentSize() == 2, no elements will be removed.
-	 *  If parentSize() == 2 after a removal, no more elements will be removed.
+	 *  If elements have the same maximum probability of occurring, no elements will be removed.
+	 *  If, after a removal, elements have the same maximum probability of occurring, no more elements will be removed.	 
+	 *  If parentSize() == 1, no elements will be removed.
+	 *  If parentSize() == 1 after a removal, no more elements will be removed.
 	 */
 	private void purge() {
 		double min = probMap.values().stream().parallel().min(Double::compare).orElse(-1.0);
+		double max = probMap.values().stream().parallel().max(Double::compare).orElse(-1.0);
+		if(max == min) {
+			return;
+		}
 		if(min == -1) {
 			return;
-		} else if(parentSize() == 2) {
+		} else if(parentSize() == 1) {
 			return;
 		} else {
 			Set<Entry<T, Double>> probabilities = probMap.entrySet();
@@ -302,10 +550,10 @@ public class ProbFunTree<T> {
 			Entry<T, Double> e;
 			while(it.hasNext()) {
 				e = it.next();
-				if(e.getValue() <= min) {
+				if(e.getValue() <= min && e.getValue() < max-roundingError) {
 					it.remove();
 					children.remove(e.getKey());
-					if(parentSize() == 2) {
+					if(parentSize() == 1) {
 						scaleProbs();
 						return;
 					}
@@ -316,8 +564,10 @@ public class ProbFunTree<T> {
 	}
 
 	/** Removes elements with the lowest probabilities in this ProbFunTree.
-	 *  If a node has two elements, no elements will be removed.
-	 *  If a node has two elements after a removal, no more elements will be removed.
+	 *  If elements have the same maximum probability of occurring, no elements will be removed.
+	 *  If, after a removal, elements have the same maximum probability of occurring, no elements will be removed.	
+	 *  If a node has one element, no elements will be removed.
+	 *  If a node has one element after a removal, no more elements will be removed.
 	 */
 	public void purgeAll() {
 		purge();
@@ -328,8 +578,8 @@ public class ProbFunTree<T> {
 
 	/**        Removes elements with probabilities less than or equal to percent chance of occurring
 	 *         from this ProbFunTree. 
-	 *         If a node has two elements, no elements will be removed.
-	 *         If a node has two elements after a removal, no more elements will be removed.
+	 *         If a node has one element, no elements will be removed.
+	 *         If a node has one element after a removal, no more elements will be removed.
 	 * @param  percent as the upper limit, inclusive, of the probability of elements being returned to be removed from this ProbFunTree.
 	 * @throws IllegalArgumentException if percent is not between 0.0 and 1.0 (exclusive)
 	 */
@@ -338,7 +588,9 @@ public class ProbFunTree<T> {
 			throw new IllegalArgumentException("percent passed to pruge() is not between 0.0 and 1.0 (exclusive)");
 		}
 		// Invariants secured
-		if(parentSize() == 2) {
+		double max = probMap.values().stream().parallel().max(Double::compare).orElse(-1.0);
+		double min = probMap.values().stream().parallel().min(Double::compare).orElse(-1.0);
+		if(parentSize() == 1 || (max <= percent && min == max)) {
 			return;
 		} else {
 			Map<T, Double> m = probMap.entrySet().stream().
@@ -346,9 +598,9 @@ public class ProbFunTree<T> {
 					collect(Collectors.toMap(Entry::getKey, Entry::getValue,
 							(e1, e2) -> e1, LinkedHashMap::new));
 			for(Entry<T, Double> e : m.entrySet()) {
-				if(e.getValue() <= percent) {
+				if(e.getValue() <= min && e.getValue() < max-roundingError) {
 					remove(e.getKey());
-					if(parentSize() == 2) {
+					if(parentSize() == 1) {
 						scaleProbs();
 						return;
 					}
@@ -360,8 +612,8 @@ public class ProbFunTree<T> {
 
 	/**        Removes elements with probabilities less than or equal to percent of being generated
 	 *         from this ProbFunTree. 
-	 *         If a node has two elements, no elements will be removed.
-	 *         If a node has two elements after a removal, no more elements will be removed.
+	 *         If a node has one element, no elements will be removed.
+	 *         If a node has one element after a removal, no more elements will be removed.
 	 * @param  percent as the upper limit, inclusive, of the probability of elements being returned to be removed from this ProbFunTree.
 	 * @throws IllegalArgumentException if percent is not between 0.0 and 1.0 (exclusive)
 	 */
@@ -370,7 +622,7 @@ public class ProbFunTree<T> {
 			throw new IllegalArgumentException("percent passed to pruge() is not between 0.0 and 1.0 (exclusive)");
 		}
 		// Invariants secured
-		if(parentSize() != 2) {
+		if(parentSize() != 1) {
 			purge(percent);
 		} 
 		for(ProbFunTree<T> p : children.values()) {
@@ -398,8 +650,8 @@ public class ProbFunTree<T> {
 			add = ((1.0-oldProb)*percent);
 		else 
 			add = (oldProb*percent);
-		// TODO choose a value that won't cause the other probabilities to go to 0.0
-		if(oldProb+add >= 1.0)
+		// TODO will this cause other probabilities to go to 0.0?
+		if(oldProb+add >= (1.0-roundingError))
 			return oldProb;
 		double goodProbability = oldProb+add;
 		probMap.put(element, goodProbability);
@@ -459,7 +711,7 @@ public class ProbFunTree<T> {
 		// Invariants secured
 		Double oldProb = probMap.get(element);
 		double sub = (oldProb*percent);
-		if(oldProb-sub <= Double.MIN_VALUE)
+		if(oldProb-sub <= roundingError)
 			return oldProb;
 		double badProbability = oldProb-sub;
 		probMap.put(element, badProbability);
@@ -563,8 +815,10 @@ public class ProbFunTree<T> {
 	 */
 	public int parentSize() {return probMap.size();}
 
-	/**        Returns the number of elements in the parent plus the number of elements in it's children.
-	 * @return the number of elements in the parent plus the number of elements in it's children.
+	/**        Returns the number of elements in this whole ProbFunTree, 
+	 *         which includes the number of elements in the parent plus the number of elements in every descendant.
+	 * @return the number of elements in this whole ProbFunTree, 
+	 *         which includes the number of elements in the parent plus the number of elements in every descendant.
 	 */
 	public int size() {
 		int size = parentSize();
@@ -590,7 +844,6 @@ public class ProbFunTree<T> {
 			}
 		}
 	}
-
 
 	@Override
 	public ProbFunTree<T> clone() {

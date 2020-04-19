@@ -24,9 +24,6 @@ public class ProbFunTree<T> implements Serializable {
 
 	private static final long serialVersionUID = -6556634307811294014L;
 
-	// The random number generator
-	private transient ThreadLocalRandom tlr = ThreadLocalRandom.current();
-
 	// The set of elements to be picked from, mapped to the probabilities of getting picked 
 	private Map<T, Double> probMap = new TreeMap<T, Double>();
 
@@ -794,10 +791,8 @@ public class ProbFunTree<T> implements Serializable {
 	 * @return the next generated value.
 	 */
 	private T nextValue() {
-		if(tlr == null) {
-			tlr = ThreadLocalRandom.current();
-		}
-		double randomChoice = tlr.nextDouble();
+		
+		double randomChoice = ThreadLocalRandom.current().nextDouble();
 		double sumOfProbabilities = 0.0;
 		Iterator<Entry<T, Double>> entries = probMap.entrySet().iterator();
 		T element = null;

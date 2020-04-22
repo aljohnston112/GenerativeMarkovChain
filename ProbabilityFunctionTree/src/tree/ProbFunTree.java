@@ -1,7 +1,7 @@
 package tree;
 
-
 import java.io.Serializable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -101,10 +101,8 @@ public class ProbFunTree<T> implements Serializable {
 		}
 		// Invariants secured
 		this.layers = layers;
-		int i = 0;
 		for(Entry<T, Double> choice : probMap.entrySet()) {
 			this.probMap.put(choice.getKey(), choice.getValue());
-			i++;
 		}
 		fixProbSum();
 		layers--;
@@ -602,7 +600,6 @@ public class ProbFunTree<T> implements Serializable {
 			add = ((1.0-oldProb)*percent);
 		else 
 			add = (oldProb*percent);
-		// TODO will this cause other probabilities to go to 0.0?
 		if(oldProb+add >= (1.0-roundingError))
 			return oldProb;
 		double goodProbability = oldProb+add;

@@ -45,9 +45,10 @@ public class ProbFunTree<T> implements Serializable {
 	 * @param  choices as the choices to be randomly picked from.
 	 * @param  layers as the number of layers for this ProbFunTree to generate.
 	 *         Ex: for choices[0, 1] and layers=2, the following data structure will be made,
-	 *         <br>[[0->0.5][1->0.5]] where the first choice is propagated like so [[0->[[0->0.5][1->0.5]]][1->[[0->0.5][1->0.5]]]].
+	 *         <br>{@literal [[0->0.5][1->0.5]]} where the first choice is propagated like so 
+	 *         {@literal [[0->[[0->0.5][1->0.5]]][1->[[0->0.5][1->0.5]]]]}.
 	 * @throws NullPointerException if choices is null.
-	 * @throws IllegalArgumentException if there isn't at least one element in choices or 
+	 * @throws IllegalArgumentException if there isn't at least one element in choices, or 
 	 *         layers is not at least 1.
 	 */
 	public ProbFunTree(Set<T> choices, int layers){
@@ -71,55 +72,45 @@ public class ProbFunTree<T> implements Serializable {
 		}
 	}
 
-	/**        Creates a ProbFunTree where getting any entry from choices is based on the probabilities passed in via probs when fun() in called.
-	 *         The entries in choices passed into this constructor will NOT be copied and will be added by reference.
-	 *         choices must not have duplicate values.
-	 * @param  choices as the choices to be randomly picked from.
-	 * @param  probs as the probability of getting each entry in the list that must addd up to 1.0 using double addition.
+	/**        Creates a ProbFunTree where getting a key from this ProbFunTree's fun() function is based on the probability values.
+	 *         The entries in probMap passed into this constructor will NOT be copied and will be added by reference.
+	 * @param  probMap as the Object-probability pairs where the probabilities must add up to 1.0 using double addition.
 	 * @param  layers as the number of layers for this ProbFunTree to generate.
-	 *         Ex: for choices[0, 1] and layers=2, the following data structure will be made,
-	 *         <br>[[0->0.5][1->0.5]] where the first choice is propagated like so [[0->[[0->0.5][1->0.5]]][1->[[0->0.5][1->0.5]]]].
-	 * @throws NullPointerException if choices or probs is null.
-	 * @throws IllegalArgumentException if there isn't at least one entry in choices, 
-	 *         choices contains duplicate entries, probs does not contain the same number of entries as choices, 
-	 *         probs entries do not add up to 1.0 using double addition, or 
+	 *         Ex: for probMap {@literal [0->0.25, 1->0.75]} and layers=2, the following data structure will be made,
+	 *         <br>{@literal [[0->0.25][1->0.75]]} where the first choice is propagated like so 
+	 *         {@literal [[0->[[0->0.25][1->0.75]]][1->[[0->0.25][1->0.75]]]]}.
+	 * @throws NullPointerException if probMap is null.
+	 * @throws IllegalArgumentException if there isn't at least one entry in probMap, 
+	 *         probMap values do not add up to 1.0 using double addition, or 
 	 *         layers is not at least 1.
 	 */
-	public ProbFunTree(List<T> choices, double[] probs, int layers){
-		Objects.requireNonNull(choices);
-		Objects.requireNonNull(probs);
-		if(choices.size() < 1) 
-			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to the ProbFunTree constructor\n");
+	public ProbFunTree(Map<T, Double> probMap , int layers){
+		Objects.requireNonNull(probMap);
+		if(probMap.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 entry in the probMap passed to the ProbFunTree constructor\n");
 		if(layers < 1) {
 			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
 		}
-		if(choices.size() != probs.length) {
-			throw new IllegalArgumentException("probs must have the same number of entries as choices when passed to the ProbFunTree constructor\n");
-		}
-		for(T t : choices) {
-			if(choices.indexOf(t) != choices.lastIndexOf(t)) {
-				throw new IllegalArgumentException("choices passed into the ProbFunTree constructor must not contain duplicates");
-			}
-		}
 		double sum = 0;
-		for(double d : probs) {
+		for(double d : probMap.values()) {
 			sum += d;
 		}
 		if(sum != 1.0) {
-			throw new IllegalArgumentException("probs must have entries that add up to 1.0 using double addition when passed to the ProbFunTree constructor\n");
+			throw new IllegalArgumentException("probMap values must add up to 1.0 using double addition "
+					+ "when passed to the ProbFunTree constructor\n");
 		}
 		// Invariants secured
 		this.layers = layers;
 		int i = 0;
-		for(T choice : choices) {
-			this.probMap.put(choice, probs[i]);
+		for(Entry<T, Double> choice : probMap.entrySet()) {
+			this.probMap.put(choice.getKey(), choice.getValue());
 			i++;
 		}
 		fixProbSum();
 		layers--;
 		if(layers != 0) {
 			for(T t: probMap.keySet()) {
-				children.put(t, new ProbFunTree<T>(choices, probs, layers, this));
+				children.put(t, new ProbFunTree<T>(probMap, layers, this));
 			}
 		}
 	}
@@ -129,7 +120,7 @@ public class ProbFunTree<T> implements Serializable {
 	 * @param  layers as the number of layers to make the ProbFunTree.
 	 * @param  parent as the parent node in the ProbFunTree.
 	 * @throws NullPointerException if choices is null.
-	 * @throws IllegalArgumentException if there isn't at least one element in choices or 
+	 * @throws IllegalArgumentException if there isn't at least one element in choices, or 
 	 *         layers is not at least 1.	 
 	 */
 	private ProbFunTree(Set<T> choices, int layers, ProbFunTree<T> parent){
@@ -155,51 +146,40 @@ public class ProbFunTree<T> implements Serializable {
 	}
 
 	/**        Private constructor for tracking parent nodes in the ProbFunTree.
-	 * @param  choices as the elements for the ProbFunTree to generate.
-	 * @param  probs as the probability of getting each entry in the list that must add up to 1.0 using double addition.
+	 * @param  probMap as the Object-probability pairs where the probabilities must add up to 1.0 using double addition.
 	 * @param  layers as the number of layers to make the ProbFunTree.
 	 * @param  parent as the parent node in the ProbFunTree.
-	 * @throws NullPointerException if choices or probs is null.
-	 * @throws IllegalArgumentException if there isn't at least one entry in choices, 
-	 *         choices contains duplicate entries, probs does not contain the same number of entries as choices,
-	 *         probs entries do not add up to 1.0 using double addition. or
+	 * @throws NullPointerException if probMap is null.
+	 * @throws IllegalArgumentException if there isn't at least one entry in probMap, 
+	 *         probMap entries do not add up to 1.0 using double addition, or
 	 *         layers is not at least 1.
 	 */
-	private ProbFunTree(List<T> choices, double[] probs, int layers, ProbFunTree<T> parent){
-		Objects.requireNonNull(choices);
-		if(choices.size() < 1) 
-			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to the ProbFunTree constructor\n");
+	private ProbFunTree(Map<T, Double> probMap , int layers, ProbFunTree<T> parent){
+		Objects.requireNonNull(probMap);
+		if(probMap.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 entry in the probMap passed to the ProbFunTree constructor\n");
 		if(layers < 1) {
 			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
 		}
-		if(choices.size() != probs.length) {
-			throw new IllegalArgumentException("probs must have the same number of entries as choices when passed to the ProbFunTree constructor\n");
-		}
-		for(T t : choices) {
-			if(choices.indexOf(t) != choices.lastIndexOf(t)) {
-				throw new IllegalArgumentException("choices passed into the ProbFunTree constructor must not contain duplicates");
-			}
-		}
 		double sum = 0;
-		for(double d : probs) {
+		for(double d : probMap.values()) {
 			sum += d;
 		}
 		if(sum != 1.0) {
-			throw new IllegalArgumentException("probs must have entries that add up to 1.0 using double addition when passed to the ProbFunTree constructor\n");
+			throw new IllegalArgumentException("probMap values must add up to 1.0 using double addition "
+					+ "when passed to the ProbFunTree constructor\n");
 		}
 		// Invariants secured
 		this.layers = layers;
 		this.parent = parent;
-		int i = 0;
-		for(T choice : choices) {
-			this.probMap.put(choice, probs[i]);
-			i++;
+		for(Entry<T, Double> choice : probMap.entrySet()) {
+			this.probMap.put(choice.getKey(), choice.getValue());
 		}
 		fixProbSum();
 		layers--;
 		if(layers != 0) {
 			for(T t: probMap.keySet()) {
-				children.put(t, new ProbFunTree<T>(choices, probs, layers, this));
+				children.put(t, new ProbFunTree<T>(probMap, layers, this));
 			}
 		}
 	}
@@ -413,80 +393,57 @@ public class ProbFunTree<T> implements Serializable {
 		}
 	}
 
-	/**        Adds elements to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
-	 *         making the probability of each element added equal to the probabilities in probs.
-	 * @param  choices as the elements to add to this ProbFunTree's descendants that have the greatest depth.
-	 * @param  probs as the probabilities that must add up to 1.0 using double addition.
-	 * @throws NullPointerException if choices or probs is null.
-	 * @throws IllegalArgumentException if choices doesn't have at least one item, 
-	 *         choices does not contain the same number of entries as probs, 
-	 *         choices contains duplicate elements, 
-	 *         or probs don't add up to 1.0 using double addition.
+	/**        Adds probMap keys to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
+	 *         making the probability of each element added equal to the values in probMap.
+	 * @param  probMap as the Object-probability pairs where the probabilities must add up to 1.0 using double addition.
+	 * @throws NullPointerException if probMap is null.
+	 * @throws IllegalArgumentException if probMap doesn't have at least one entry, 
+	 *         or probMap values aren't under 1.0 using double addition.
 	 */
-	public void addLayer(List<T> choices, double[] probs) {
-		Objects.requireNonNull(choices);
-		Objects.requireNonNull(probs);
-		if(choices.size() < 1) 
-			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to addLayer\n");
-		if(choices.size() != probs.length) {
-			throw new IllegalArgumentException("probs must have the same number of entries as choices when passed to addLayer\n");
-		}
-		for(T t : choices) {
-			if(choices.indexOf(t) != choices.lastIndexOf(t)) {
-				throw new IllegalArgumentException("choices passed into addLayer must not contain duplicates");
-			}
-		}
+	public void addLayer(Map<T, Double> probMap) {
+		Objects.requireNonNull(probMap);
+		if(probMap.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 entry in the probMap passed to addLayer\n");
 		double sum = 0;
-		for(double d : probs) {
+		for(double d : probMap.values()) {
 			sum += d;
 		}
 		if(sum != 1.0) {
-			throw new IllegalArgumentException("probs must have entries that add up to 1.0 using double addition when passed to addLayer\n");
+			throw new IllegalArgumentException("probMap must have values that add up to 1.0 using double addition when passed to addLayer\n");
 		}
 		// Invariants secured
-		addLayer(this, choices, probs);
+		addLayer(this, probMap);
 		incrementLayer();
 	}
 
-	/**        Adds elements to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
-	 *         making the probability of each element added equal to the probabilities in probs.
-	 * @param  choices as the elements to add to this ProbFunTree's descendants that have the greatest depth.
-	 * @param  probs as the probabilities that must add up to 1.0 using double addition.
-	 * @throws NullPointerException if choices, parent, or probs is null.
-	 * @throws IllegalArgumentException if choices doesn't have at least one item, 
-	 *         choices does not contain the same number of entries as probs, 
-	 *         choices contains duplicate elements, 
-	 *         or probs don't add up to 1.0 using double addition.
+	/**        Adds probMap keys to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
+	 *         making the probability of each element added equal to the probability values in probMap.
+	 * @param  probMap as the Object-probability pairs where the probabilities must add up to 1.0 using double addition.
+	 * @throws NullPointerException if parent or probMap is null.
+	 * @throws IllegalArgumentException if probMap doesn't have at least one entry, 
+	 *         or probMap values don't add up to 1.0 using double addition.
 	 */
-	private void addLayer(ProbFunTree<T> parent, List<T> choices, double[] probs) {
-		Objects.requireNonNull(choices);
-		Objects.requireNonNull(probs);
+	private void addLayer(ProbFunTree<T> parent, Map<T, Double> probMap) {
+		Objects.requireNonNull(probMap);
 		Objects.requireNonNull(parent);
-		if(choices.size() < 1) 
+		if(probMap.size() < 1) {
 			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to addLayer\n");
-		if(choices.size() != probs.length) {
-			throw new IllegalArgumentException("probs must have the same number of entries as choices when passed to addLayer\n");
-		}
-		for(T t : choices) {
-			if(choices.indexOf(t) != choices.lastIndexOf(t)) {
-				throw new IllegalArgumentException("choices passed into addLayer must not contain duplicates");
-			}
 		}
 		double sum = 0;
-		for(double d : probs) {
+		for(double d : probMap.values()) {
 			sum += d;
 		}
 		if(sum != 1.0) {
-			throw new IllegalArgumentException("probs must have entries that add up to 1.0 using double addition when passed to addLayer\n");
+			throw new IllegalArgumentException("probMap must have values that add up to 1.0 using double addition when passed to addLayer\n");
 		}
 		// Invariants secured
 		for(ProbFunTree<T> child : parent.children.values()) {
 			if(child.children.isEmpty()) {
 				for(T t : child.probMap.keySet()) {
-					child.children.put(t, new ProbFunTree<T>(choices, probs, 1, parent));
+					child.children.put(t, new ProbFunTree<T>(probMap, 1, parent));
 				}
 			} else {
-				addLayer(child, choices, probs);
+				addLayer(child, probMap);
 			}
 		}
 	}

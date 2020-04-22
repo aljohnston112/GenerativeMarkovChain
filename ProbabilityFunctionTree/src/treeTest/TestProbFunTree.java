@@ -1,8 +1,10 @@
 package treeTest;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import tree.ProbFunTree;
@@ -16,10 +18,8 @@ public class TestProbFunTree {
 		testAddToAll();
 		testAddToAll2();
 		testRemoveFromAll();
-		*/
 		testPurgeAll();
 		testPurgeAll2();
-		/*
 		testGood();
 		testBad();
 		testFun();
@@ -27,10 +27,10 @@ public class TestProbFunTree {
 		testSize();
 		testClone();
 		testClearHistory();
+		*/
 		testConstructorWithProbs();
 		testAddLayer();
 		testAddLayer2();
-		*/
 	}
 
 	private static void testAddLayer2() {
@@ -39,65 +39,37 @@ public class TestProbFunTree {
 		System.out.print("Add Layer Test:\n");
 		Set<Integer> choices = new HashSet<Integer>();
 		choices.add(0);choices.add(1);
-		double[] probs = new double[2];
 		int layers = 3;
 		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
-		List<Integer> choices2 = null;
+		Map<Integer, Double> choices2 = null;
 		try {
-			pf.addLayer(choices2, probs);
+			pf.addLayer(choices2);
 		} catch(NullPointerException e) {
-			System.out.print("Null List pass\n");
+			System.out.print("Null Map pass\n");
 		} finally {
-			System.out.print("Null List pass?\n");
+			System.out.print("Null Map pass?\n");
 		}
-		choices2 = new ArrayList<Integer>();
-		probs = null;
+		choices2 = new HashMap<Integer, Double>();
 		try {
-			pf.addLayer(choices2, probs);
-		} catch(NullPointerException e) {
-			System.out.print("Null probs pass\n");
-		} finally {
-			System.out.print("Null probs pass?\n");
-		}
-		probs = new double[1];
-		try {
-			pf.addLayer(choices2, probs);
+			pf.addLayer(choices2);
 		} catch(IllegalArgumentException e) {
-			System.out.print("Empty List pass\n");
+			System.out.print("Empty Map pass\n");
 		} finally {
-			System.out.print("Empty List pass?\n");
+			System.out.print("Empty Map pass?\n");
 		}
-		choices2.add(2);choices2.add(2);
+		choices2.put(2, 0.1);choices2.put(3, 0.5);
 		try {
-			pf.addLayer(choices2, probs);
-		} catch(IllegalArgumentException e) {
-			System.out.print("Wrong num of probs pass\n");
-		} finally {
-			System.out.print("Wrong num of probs pass?\n");
-		}
-		probs = new double[2];
-		try {
-			pf.addLayer(choices2, probs);
-		} catch(IllegalArgumentException e) {
-			System.out.print("Duplicates in List pass\n");
-		} finally {
-			System.out.print("Duplicates in List pass?\n");
-		}
-		try {
-			pf.addLayer(choices2, probs);
+			pf.addLayer(choices2);
 		} catch(IllegalArgumentException e) {
 			System.out.print("Wrong prob sum pass\n");
 		} finally {
 			System.out.print("Wrong prob sum pass?\n");
 		}
-		probs[0] = 0.25;
-		probs[1] = 0.75;
-		System.out.print("Before addLayer([2, 3], [0.25, 0.75]):\n");
+		choices2.put(2, 0.25);choices2.put(3, 0.75);
+		System.out.print("Before addLayer([[2->0.25], [3->0.75]]):\n");
 		System.out.print(pf);
-		choices2.clear();
-		choices2.add(2);choices2.add(3);
-		pf.addLayer(choices2, probs);
-		System.out.print("After addLayer([2, 3], [0.25, 0.75]):\n");
+		pf.addLayer(choices2);
+		System.out.print("After addLayer([[2->0.25], [3->0.75]]):\n");
 		System.out.print(pf);
 	}
 
@@ -141,82 +113,55 @@ public class TestProbFunTree {
 		//probs entries do not add up to 1.0 using double addition, 
 		//or layers is not at least 1.
 		System.out.print("Constructor w/ Probs Test:\n");
-		List<Integer> choices = null;
-		double[] probs = new double[2];
+		Map<Integer, Double> choices = null;
 		int layers = 1;
 		try {
-			new ProbFunTree<Integer>(choices, probs, layers);
+			new ProbFunTree<Integer>(choices, layers);
 		} catch(NullPointerException e) {
-			System.out.print("Null List pass\n");
+			System.out.print("Null Map pass\n");
 		} finally {
-			System.out.print("Null List pass?\n");
+			System.out.print("Null Map pass?\n");
 		}
-		choices = new ArrayList<Integer>();
-		probs = null;
+		choices = new HashMap<Integer, Double>();
 		try {
-			new ProbFunTree<Integer>(choices, probs, layers);
-		} catch(NullPointerException e) {
-			System.out.print("Null probs pass\n");
-		} finally {
-			System.out.print("Null probs pass?\n");
-		}
-		probs = new double[2];
-		try {
-			new ProbFunTree<Integer>(choices, probs, layers);
+			new ProbFunTree<Integer>(choices, layers);
 		} catch(IllegalArgumentException e) {
-			System.out.print("Empty List pass\n");
+			System.out.print("Empty Map pass\n");
 		} finally {
-			System.out.print("Empty List pass?\n");
+			System.out.print("Empty Map pass?\n");
 		}
-		choices.add(0);choices.add(0);
+		choices.put(2, 0.1);choices.put(3, 0.5);
 		try {
-			new ProbFunTree<Integer>(choices, probs, layers);
-		} catch(IllegalArgumentException e) {
-			System.out.print("Duplicate entry pass\n");
-		} finally {
-			System.out.print("Duplicate entry pass?\n");
-		}
-		choices.remove(1);choices.add(1);
-		probs = new double[1];
-		try {
-			new ProbFunTree<Integer>(choices, probs, layers);
-		} catch(IllegalArgumentException e) {
-			System.out.print("Wrong num of probs pass\n");
-		} finally {
-			System.out.print("Wrong num of probs pass?\n");
-		}
-		probs = new double[2];probs[0] = 0.25;probs[1] = 1.0;
-		try {
-			new ProbFunTree<Integer>(choices, probs, layers);
+			new ProbFunTree<Integer>(choices, layers);
 		} catch(IllegalArgumentException e) {
 			System.out.print("Wrong prob sum pass\n");
 		} finally {
 			System.out.print("Wrong prob sum pass?\n");
 		}
-		probs[0] = 0.25;probs[1] = 0.75;
+		choices.put(2, 0.25);choices.put(3, 0.75);
 		layers = 0;
 		try {
-			new ProbFunTree<Integer>(choices, probs, layers);
+			new ProbFunTree<Integer>(choices, layers);
 		} catch(IllegalArgumentException e) {
 			System.out.print("No layers pass\n");
 		} finally {
 			System.out.print("No layers pass?\n");
 		}
 		layers = 1;
-		System.out.print("Single layer with 0 and 1 at 0.25 and 0.75:\n");
-		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, probs, layers);
+		System.out.print("Single layer with 2 and 3 at 0.25 and 0.75:\n");
+		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
 		System.out.print(pf);
-		System.out.print("Two layers with 0 and 1 at 0.25 and 0.75:\n");
+		System.out.print("Two layers with 2 and 3 at 0.25 and 0.75:\n");
 		layers = 2;
-		ProbFunTree<Integer> pf2 = new ProbFunTree<Integer>(choices, probs, layers);
+		ProbFunTree<Integer> pf2 = new ProbFunTree<Integer>(choices, layers);
 		System.out.print(pf2);
-		System.out.print("Three layers with 0 and 1 at 0.25 and 0.75:\n");
+		System.out.print("Three layers with 2 and 3 at 0.25 and 0.75:\n");
 		layers = 3;
-		ProbFunTree<Integer> pf3 = new ProbFunTree<Integer>(choices, probs, layers);
+		ProbFunTree<Integer> pf3 = new ProbFunTree<Integer>(choices, layers);
 		System.out.print(pf3);
-		System.out.print("Four layers with 0 and 1 at 0.25 and 0.75:\n");
+		System.out.print("Four layers with 2 and 3 at 0.25 and 0.75:\n");
 		layers = 4;
-		ProbFunTree<Integer> pf4 = new ProbFunTree<Integer>(choices, probs, layers);
+		ProbFunTree<Integer> pf4 = new ProbFunTree<Integer>(choices, layers);
 		System.out.print(pf4);		
 	}
 

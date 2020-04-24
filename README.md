@@ -6,4 +6,4 @@ Other methods are in development that will provide ways to search for sequences 
 
 Other classes are in development that will allow ProbFunTrees to be built using supplied data.
 
-TL;DR: The idea for this project came from tinkering with Markov Chains. Essentially, it is a Markov Chain where the elements in the chain are map to other Markov Chains.
+TL;DR: The idea for this project came from tinkering with Markov Chains. Essentially, it is a Markov Chain where the elements in the chain are mapped to other Markov Chains.

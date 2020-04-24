@@ -18,8 +18,8 @@ public class TestProbFunTree {
 		testAddToAll();
 		testAddToAll2();
 		testRemoveFromAll();
-		testPurgeAll();
-		testPurgeAll2();
+		testPruneAll();
+		testPruneAll2();
 		testGood();
 		testBad();
 		testFun();
@@ -27,10 +27,173 @@ public class TestProbFunTree {
 		testSize();
 		testClone();
 		testClearHistory();
-		*/
 		testConstructorWithProbs();
 		testAddLayer();
 		testAddLayer2();
+		testAdd();
+		testAdd2();
+		testRemove();
+		testPrune();
+		testPrune2();
+		*/
+	}
+
+	private static void testPrune2() {
+		//IllegalArgumentException - if percent is not between 0.0 and 1.0 (exclusive)
+		System.out.print("Prune w/ Percent Test:\n");
+		Set<Integer> choices = new HashSet<Integer>();
+		choices.add(0);choices.add(1);choices.add(2);
+		Set<Integer> choices2 = new HashSet<Integer>();
+		choices2.add(5);choices2.add(6);
+		int layers = 3;
+		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
+		pf.addToAll(3, choices2, .1);
+		pf.addToAll(4, choices2, 0.05);
+		try {
+			pf.prune(0);
+		} catch(IllegalArgumentException e) {
+			System.out.print("0% pass\n");
+		} finally {
+			System.out.print("0% pass?\n");
+		}
+		try {
+			pf.prune(1);
+		} catch(IllegalArgumentException e) {
+			System.out.print("1% pass\n");
+		} finally {
+			System.out.print("1% pass?\n");
+		}
+		System.out.print("Before Prune(0.05):\n");
+		System.out.print(pf);
+		pf.prune(0.05);
+		System.out.print("After Prune(0.05):\n");
+		System.out.print(pf);
+		System.out.print("Before Prune(0.9):\n");
+		System.out.print(pf);
+		pf.prune(0.9);
+		System.out.print("After Prune(0.9):\n");
+		System.out.print(pf);
+	}
+
+	private static void testPrune() {
+		System.out.print("Prune Test:\n");
+		Set<Integer> choices = new HashSet<Integer>();
+		choices.add(0);choices.add(1);choices.add(2);
+		int layers = 3;
+		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
+		System.out.print("Before Prune():\n");
+		System.out.print(pf);
+		pf.prune();
+		System.out.print("After Prune():\n");
+		System.out.print(pf);
+		Set<Integer> choices2 = new HashSet<Integer>();
+		choices2.add(0);choices2.add(1);
+		ProbFunTree<Integer> pf2 = new ProbFunTree<Integer>(choices2, layers);	
+		System.out.print("Before Prune():\n");
+		System.out.print(pf2);
+		pf.prune();
+		System.out.print("After Prune():\n");
+		System.out.print(pf2);
+		Set<Integer> choices3 = new HashSet<Integer>();
+		choices3.add(0);choices3.add(1);
+		ProbFunTree<Integer> pf3 = new ProbFunTree<Integer>(choices3, layers);	
+		Set<Integer> choices4 = new HashSet<Integer>();
+		choices4.add(4);choices4.add(3);
+		pf3.addToAll(2, choices4, 0.7);
+		System.out.print("Before Prune():\n");
+		System.out.print(pf3);
+		pf3.prune();
+		System.out.print("After Prune():\n");
+		System.out.print(pf3);
+	}
+
+	private static void testRemove() {
+		//NullPointerException - if element is null.
+		System.out.print("Remove Test:\n");
+		Set<Integer> choices = new HashSet<Integer>();
+		choices.add(0);choices.add(1);
+		int layers = 3;
+		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
+		try {
+			pf.remove(null);
+		} catch(NullPointerException e) {
+			System.out.print("Null element pass\n");
+		} finally {
+			System.out.print("Null element pass?\n");
+		}
+		System.out.print("Before remove(1):\n");
+		System.out.print(pf);
+		pf.remove(1);
+		System.out.print("After remove(1):\n");
+		System.out.print(pf);
+		choices.add(2);
+		pf = new ProbFunTree<Integer>(choices, layers);
+		System.out.print("Before remove(0):\n");
+		System.out.print(pf);
+		pf.remove(0);
+		System.out.print("After remove(0):\n");
+		System.out.print(pf);
+	}
+
+	private static void testAdd2() {
+		//NullPointerException - if element is null.
+		//IllegalArgumentException - if percent is not between 0.0 and 1.0 (exclusive).
+		System.out.print("Add w/ Percent Test:\n");
+		Set<Integer> choices = new HashSet<Integer>();
+		choices.add(0);choices.add(1);
+		int layers = 3;
+		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
+		Set<Integer> choices2 = new HashSet<Integer>();
+		choices2.add(4);choices2.add(3);
+		try {
+			pf.add(null, choices2, 0.1);
+		} catch(NullPointerException e) {
+			System.out.print("Null element pass\n");
+		} finally {
+			System.out.print("Null element pass?\n");
+		}
+		try {
+			pf.add(2, choices2, 0);
+		} catch(IllegalArgumentException e) {
+			System.out.print("0% pass\n");
+		} finally {
+			System.out.print("0% pass?\n");
+		}
+		try {
+			pf.add(2, choices2, 1);
+		} catch(IllegalArgumentException e) {
+			System.out.print("100% pass\n");
+		} finally {
+			System.out.print("100% pass?\n");
+		}
+		System.out.print("Before add(2, [3, 4], 0.1):\n");
+		System.out.print(pf);
+		pf.add(2, choices2, 0.1);
+		System.out.print("After add(2, [3, 4], 0.1):\n");
+		System.out.print(pf);
+	}
+
+	private static void testAdd() {
+		//NullPointerException - if element is null.
+		System.out.print("Add Test:\n");
+		Set<Integer> choices = new HashSet<Integer>();
+		choices.add(0);choices.add(1);
+		int layers = 3;
+		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
+		Set<Integer> choices2 = new HashSet<Integer>();
+		choices2.add(4);choices2.add(3);
+		try {
+			pf.add(null, choices2);
+		} catch(NullPointerException e) {
+			System.out.print("Null element pass\n");
+		} finally {
+			System.out.print("Null element pass?\n");
+		}
+		System.out.print("Before add(2, [3,4]):\n");
+		System.out.print(pf);
+		pf.add(2, choices2);
+		System.out.print("After add(2, [3,4]):\n");
+		System.out.print(pf);		
 	}
 
 	private static void testAddLayer2() {
@@ -403,70 +566,73 @@ public class TestProbFunTree {
 		System.out.print(pf);
 	}
 
-	private static void testPurgeAll2() {
+	private static void testPruneAll2() {
 		//IllegalArgumentException - if percent is not between 0.0 and 1.0 (exclusive)
-		System.out.print("Purge w/ Percent Test:\n");
+		System.out.print("PruneAll w/ Percent Test:\n");
 		Set<Integer> choices = new HashSet<Integer>();
 		choices.add(0);choices.add(1);choices.add(2);
+		Set<Integer> choices2 = new HashSet<Integer>();
+		choices2.add(5);choices2.add(6);
 		int layers = 3;
 		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
-		pf.addToAll(3, .1);
-		pf.addToAll(4, 0.05);
+		pf.addToAll(3, choices2, .1);
+		pf.addToAll(4, choices2, 0.05);
 		try {
-			pf.purgeAll(0);
+			pf.pruneAll(0);
 		} catch(IllegalArgumentException e) {
 			System.out.print("0% pass\n");
 		} finally {
 			System.out.print("0% pass?\n");
 		}
 		try {
-			pf.purgeAll(1);
+			pf.pruneAll(1);
 		} catch(IllegalArgumentException e) {
 			System.out.print("1% pass\n");
 		} finally {
 			System.out.print("1% pass?\n");
 		}
-		System.out.print("Before purge(0.05):\n");
+		System.out.print("Before PruneAll(0.05):\n");
 		System.out.print(pf);
-		pf.purgeAll(0.05);
-		System.out.print("After purge(0.05):\n");
+		pf.pruneAll(0.05);
+		System.out.print("After PruneAll(0.05):\n");
 		System.out.print(pf);
-		System.out.print("Before purge(0.9):\n");
+		System.out.print("Before PruneAll(0.9):\n");
 		System.out.print(pf);
-		pf.purgeAll(0.9);
-		System.out.print("After purge(0.9):\n");
+		pf.pruneAll(0.9);
+		System.out.print("After PruneAll(0.9):\n");
 		System.out.print(pf);
 	}
 
-	private static void testPurgeAll() {
-		System.out.print("Purge Test:\n");
+	private static void testPruneAll() {
+		System.out.print("PruneAll Test:\n");
 		Set<Integer> choices = new HashSet<Integer>();
 		choices.add(0);choices.add(1);choices.add(2);
 		int layers = 3;
 		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
-		System.out.print("Before purge():\n");
+		System.out.print("Before PruneAll():\n");
 		System.out.print(pf);
-		pf.purgeAll();
-		System.out.print("After purge():\n");
+		pf.pruneAll();
+		System.out.print("After PruneAll():\n");
 		System.out.print(pf);
 
 		Set<Integer> choices2 = new HashSet<Integer>();
 		choices2.add(0);choices2.add(1);
 		ProbFunTree<Integer> pf2 = new ProbFunTree<Integer>(choices2, layers);	
-		System.out.print("Before purge():\n");
+		System.out.print("Before PruneAll():\n");
 		System.out.print(pf2);
-		pf.purgeAll();
-		System.out.print("After purge():\n");
+		pf.pruneAll();
+		System.out.print("After PruneAll():\n");
 		System.out.print(pf2);
-
 		Set<Integer> choices3 = new HashSet<Integer>();
 		choices3.add(0);choices3.add(1);
 		ProbFunTree<Integer> pf3 = new ProbFunTree<Integer>(choices3, layers);	
-		pf3.addToAll(2, 0.7);
-		System.out.print("Before purge():\n");
+		Set<Integer> choices4 = new HashSet<Integer>();
+		choices4.add(4);choices4.add(3);
+		pf3.addToAll(2, choices4, 0.7);
+		System.out.print("Before PruneAll():\n");
 		System.out.print(pf3);
-		pf3.purgeAll();
-		System.out.print("After purge():\n");
+		pf3.pruneAll();
+		System.out.print("After PruneAll():\n");
 		System.out.print(pf3);
 	}
 
@@ -506,33 +672,34 @@ public class TestProbFunTree {
 		choices.add(0);choices.add(1);
 		int layers = 3;
 		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
+		Set<Integer> choices2 = new HashSet<Integer>();
+		choices2.add(4);choices2.add(3);
 		try {
-			pf.addToAll(null, 0.1);
+			pf.addToAll(null, choices2, 0.1);
 		} catch(NullPointerException e) {
 			System.out.print("Null element pass\n");
 		} finally {
 			System.out.print("Null element pass?\n");
 		}
 		try {
-			pf.addToAll(2, 0);
+			pf.addToAll(2, choices2, 0);
 		} catch(IllegalArgumentException e) {
 			System.out.print("0% pass\n");
 		} finally {
 			System.out.print("0% pass?\n");
 		}
 		try {
-			pf.addToAll(2, 1);
+			pf.addToAll(2, choices2, 1);
 		} catch(IllegalArgumentException e) {
 			System.out.print("100% pass\n");
 		} finally {
 			System.out.print("100% pass?\n");
 		}
-		System.out.print("Before addToAll(2, 0.1):\n");
+		System.out.print("Before addToAll(2, [3, 4], 0.1):\n");
 		System.out.print(pf);
-		pf.addToAll(2, 0.1);
-		System.out.print("After addToAll(2, 0.1):\n");
+		pf.addToAll(2, choices2, 0.1);
+		System.out.print("After addToAll(2, [3, 4], 0.1):\n");
 		System.out.print(pf);
-
 	}
 
 	private static void testAddToAll() {
@@ -542,17 +709,19 @@ public class TestProbFunTree {
 		choices.add(0);choices.add(1);
 		int layers = 3;
 		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);
+		Set<Integer> choices2 = new HashSet<Integer>();
+		choices2.add(4);choices2.add(3);
 		try {
-			pf.addToAll(null);
+			pf.addToAll(null, choices2);
 		} catch(NullPointerException e) {
 			System.out.print("Null element pass\n");
 		} finally {
 			System.out.print("Null element pass?\n");
 		}
-		System.out.print("Before addToAll(2):\n");
+		System.out.print("Before addToAll(2, [3,4]):\n");
 		System.out.print(pf);
-		pf.addToAll(2);
-		System.out.print("After addToAll(2):\n");
+		pf.addToAll(2, choices2);
+		System.out.print("After addToAll(2, [3,4]):\n");
 		System.out.print(pf);
 	}
 
@@ -562,11 +731,13 @@ public class TestProbFunTree {
 		choices.add(0);choices.add(1);
 		int layers = 3;
 		ProbFunTree<Integer> pf = new ProbFunTree<Integer>(choices, layers);	
-		pf.addToAll(2, 0.5);
+		Set<Integer> choices2 = new HashSet<Integer>();
+		choices2.add(4);choices2.add(3);
+		pf.addToAll(2, choices, 0.5);
 		System.out.print("Before ClearProbs:\n");
 		System.out.print(pf);
 		System.out.print("After ClearProbs:\n");
-		pf.clearProbs();
+		pf.clearAllProbs();
 		System.out.print(pf);
 	}
 

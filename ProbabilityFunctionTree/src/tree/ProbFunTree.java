@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +16,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
- *         A tree node where a set of elements are picked from randomly to decide which child will randomly produce the next element when fun() is called.
+ *         A tree node where a set of elements are picked from randomly to decide which child node 
+ *         will randomly produce the next element when fun() is called.
  * @author Alexander Johnston
  * @since  Copyright 2020
  * @param  <T> The type of the elements that will be picked from
@@ -25,10 +27,10 @@ public class ProbFunTree<T> implements Serializable {
 	private static final long serialVersionUID = -6556634307811294014L;
 
 	// The set of elements to be picked from, mapped to the probabilities of getting picked 
-	private Map<T, Double> probMap = new TreeMap<T, Double>();
+	private TreeMap<T, Double> probMap = new TreeMap<T, Double>();
 
 	// The set of elements to be picked from, mapped to the probabilities of getting picked 
-	private Map<T, ProbFunTree<T>> children = new TreeMap<T, ProbFunTree<T>>();
+	private HashMap<T, ProbFunTree<T>> children = new HashMap<T, ProbFunTree<T>>();
 
 	private ProbFunTree<T> parent = null;
 
@@ -36,7 +38,7 @@ public class ProbFunTree<T> implements Serializable {
 
 	private int id = 0;
 
-	private int layers;
+	private int layer;
 
 	private double roundingError = 0;
 
@@ -51,7 +53,7 @@ public class ProbFunTree<T> implements Serializable {
 	 * @throws IllegalArgumentException if there isn't at least one element in choices, or 
 	 *         layers is not at least 1.
 	 */
-	public ProbFunTree(Set<T> choices, int layers){
+	public ProbFunTree(Set<T> choices, int layers) {
 		Objects.requireNonNull(choices);
 		if(choices.size() < 1) 
 			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to the ProbFunTree constructor\n");
@@ -59,15 +61,49 @@ public class ProbFunTree<T> implements Serializable {
 			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
 		}
 		// Invariants secured
-		this.layers = layers;
+		this.layer = 0;
 		for(T choice : choices) {
 			this.probMap.put(choice, 1.0/choices.size());
 		}
 		fixProbSum();
-		layers--;
-		if(layers != 0) {
-			for(T t: probMap.keySet()) {
-				children.put(t, new ProbFunTree<T>(probMap.keySet(), layers, this));
+		int currentLayers = 1;
+		if(layers != this.layer+1) {
+			for(T t: this.probMap.keySet()) {
+				this.children.put(t, new ProbFunTree<T>(choices, layers, currentLayers,  this));
+			}
+		}
+	}
+
+	/**        Private constructor for tracking parent nodes in the ProbFunTree.
+	 * @param  choices as the elements for the ProbFunTree to generate.
+	 * @param  layers as the number of layers to make the ProbFunTree.
+	 * @param  currentLayer as the layer of the ProbFunTree node to be generated.
+	 * @param  parent as the parent node in the ProbFunTree.
+	 * @throws NullPointerException if choices is null.
+	 * @throws IllegalArgumentException if there isn't at least one element in choices, or 
+	 *         layers and currentLayer are not at least 1.	 
+	 */
+	private ProbFunTree(Set<T> choices, int layers, int currentLayer, ProbFunTree<T> parent){
+		Objects.requireNonNull(choices);
+		if(choices.size() < 1) 
+			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to the ProbFunTree constructor\n");
+		if(layers < 1) {
+			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
+		}
+		if(currentLayer < 1) {
+			throw new IllegalArgumentException("currentLayer passed into the ProbFunTree constructor must be at least 1");
+		}
+		// Invariants secured
+		this.layer = currentLayer;
+		this.parent = parent;
+		for(T choice : choices) {
+			this.probMap.put(choice, 1.0/choices.size());
+		}
+		fixProbSum();
+		currentLayer++;
+		if(this.layer+1 != layers) {
+			for(T t: this.probMap.keySet()) {
+				this.children.put(t, new ProbFunTree<T>(choices, layers, currentLayer, this));
 			}
 		}
 	}
@@ -100,45 +136,15 @@ public class ProbFunTree<T> implements Serializable {
 					+ "when passed to the ProbFunTree constructor\n");
 		}
 		// Invariants secured
-		this.layers = layers;
+		this.layer = 0;
 		for(Entry<T, Double> choice : probMap.entrySet()) {
 			this.probMap.put(choice.getKey(), choice.getValue());
 		}
 		fixProbSum();
-		layers--;
-		if(layers != 0) {
+		int currentLayer = 1;
+		if(this.layer+1 != layers) {
 			for(T t: probMap.keySet()) {
-				children.put(t, new ProbFunTree<T>(probMap, layers, this));
-			}
-		}
-	}
-
-	/**        Private constructor for tracking parent nodes in the ProbFunTree.
-	 * @param  choices as the elements for the ProbFunTree to generate.
-	 * @param  layers as the number of layers to make the ProbFunTree.
-	 * @param  parent as the parent node in the ProbFunTree.
-	 * @throws NullPointerException if choices is null.
-	 * @throws IllegalArgumentException if there isn't at least one element in choices, or 
-	 *         layers is not at least 1.	 
-	 */
-	private ProbFunTree(Set<T> choices, int layers, ProbFunTree<T> parent){
-		Objects.requireNonNull(choices);
-		if(choices.size() < 1) 
-			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to the ProbFunTree constructor\n");
-		if(layers < 1) {
-			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
-		}
-		// Invariants secured
-		this.layers = layers;
-		this.parent = parent;
-		for(T choice : choices) {
-			this.probMap.put(choice, 1.0/choices.size());
-		}
-		fixProbSum();
-		layers--;
-		if(layers != 0) {
-			for(T t: probMap.keySet()) {
-				children.put(t, new ProbFunTree<T>(probMap.keySet(), layers, this));
+				this.children.put(t, new ProbFunTree<T>(probMap, layers, currentLayer, this));
 			}
 		}
 	}
@@ -146,18 +152,22 @@ public class ProbFunTree<T> implements Serializable {
 	/**        Private constructor for tracking parent nodes in the ProbFunTree.
 	 * @param  probMap as the Object-probability pairs where the probabilities must add up to 1.0 using double addition.
 	 * @param  layers as the number of layers to make the ProbFunTree.
+	 * @param  currentLayer as the layer of the ProbFunTree node to be generated.
 	 * @param  parent as the parent node in the ProbFunTree.
 	 * @throws NullPointerException if probMap is null.
 	 * @throws IllegalArgumentException if there isn't at least one entry in probMap, 
 	 *         probMap entries do not add up to 1.0 using double addition, or
-	 *         layers is not at least 1.
+	 *         layers or currentLayer are not at least 1.
 	 */
-	private ProbFunTree(Map<T, Double> probMap , int layers, ProbFunTree<T> parent){
+	private ProbFunTree(Map<T, Double> probMap , int layers, int currentLayer, ProbFunTree<T> parent){
 		Objects.requireNonNull(probMap);
 		if(probMap.size() < 1) 
 			throw new IllegalArgumentException("Must have at least 1 entry in the probMap passed to the ProbFunTree constructor\n");
 		if(layers < 1) {
 			throw new IllegalArgumentException("layers passed into the ProbFunTree constructor must be at least 1");
+		}
+		if(currentLayer < 1) {
+			throw new IllegalArgumentException("currentLayer passed into the ProbFunTree constructor must be at least 1");
 		}
 		double sum = 0;
 		for(double d : probMap.values()) {
@@ -168,36 +178,37 @@ public class ProbFunTree<T> implements Serializable {
 					+ "when passed to the ProbFunTree constructor\n");
 		}
 		// Invariants secured
-		this.layers = layers;
+		this.layer = currentLayer;
 		this.parent = parent;
 		for(Entry<T, Double> choice : probMap.entrySet()) {
 			this.probMap.put(choice.getKey(), choice.getValue());
 		}
 		fixProbSum();
-		layers--;
-		if(layers != 0) {
+		currentLayer++;
+		if(this.layer+1 != layers) {
 			for(T t: probMap.keySet()) {
-				children.put(t, new ProbFunTree<T>(probMap, layers, this));
+				this.children.put(t, new ProbFunTree<T>(probMap, layers, currentLayer, this));
 			}
 		}
 	}
 
-	/**        the Map of element-probability pairs that make up the parent of this ProbFunTree. 
+	/**        returns the Map of element-probability pairs that make up this ProbFunTree. 
 	 *         Any changes in the returned Map will be reflected in this ProbFunTree.
-	 * @return the Map of element-probability pairs that make up the parent of this ProbFunTree. 
+	 * @return the Map of element-probability pairs that make up this ProbFunTree. 
 	 *         Any changes in the returned Map will be reflected in this ProbFunTree.
 	 */
-	public Map<T, Double> getParentMap() {
-		return probMap;
+	public Map<T, Double> getProbMap() {
+		return this.probMap;
 	}
 
-	/**        Returns the Map of element-ProbFunTree pairs that make up the children of this ProbFunTree. 
+	/**        Returns the Map of element-ProbFunTree pairs that represent which ProbFunTree 
+	 *         will be used to generate the next element given the last returned element. 
 	 *         Any changes in the returned Map will be reflected in this ProbFunTree.
-	 * @return the Map of element-ProbFunTree pairs that make up the children of this ProbFunTree. 
-	 *         Any changes in the returned Map will be reflected in this ProbFunTree.
+	 * @return the Map of element-ProbFunTree pairs that represent which ProbFunTree 
+	 *         will be used to generate the next element given the last returned element. 
 	 */
 	public Map<T, ProbFunTree<T>> getChildMap() {
-		return children;
+		return this.children;
 	}
 
 	/** Scales the probabilities so they add up to 1.0.
@@ -205,7 +216,7 @@ public class ProbFunTree<T> implements Serializable {
 	 */
 	private void scaleProbs() {
 		double scale = 1.0/probSum();
-		Set<Entry<T, Double>> probabilities = probMap.entrySet();
+		Set<Entry<T, Double>> probabilities = this.probMap.entrySet();
 		for(Entry<T, Double> e : probabilities) {
 			e.setValue(e.getValue()*scale);
 		}	
@@ -216,7 +227,7 @@ public class ProbFunTree<T> implements Serializable {
 	 * @return the sum of all the probabilities in order to fix rounding error.
 	 */
 	private double probSum() {
-		Collection<Double> probabilities = probMap.values();
+		Collection<Double> probabilities = this.probMap.values();
 		double sum = 0;
 		for(Double d : probabilities) {
 			sum += d;
@@ -229,17 +240,24 @@ public class ProbFunTree<T> implements Serializable {
 	 */
 	private void fixProbSum() {
 		Entry<T, Double> firstProb = this.probMap.entrySet().iterator().next();
-		roundingError  = 1.0-probSum();
-		firstProb.setValue(firstProb.getValue() + roundingError);		
+		this.roundingError  = 1.0-probSum();
+		firstProb.setValue(firstProb.getValue() + this.roundingError);		
 	}
 
-	/** Sets the probabilities to there being an equal chance of getting any element from this ProbFunTree
+	/** Sets the probabilities to there being an equal chance of getting any element from this ProbFunTree.
 	 * 
 	 */
 	public void clearProbs() {
-		probMap = (new ProbFunTree<T>(probMap.keySet().stream().collect(Collectors.toSet()), 1)).probMap;
-		for(ProbFunTree<T> p : children.values()) {
-			p.clearProbs();
+		this.probMap = (new ProbFunTree<T>(this.probMap.keySet(), 1)).probMap;
+	}
+
+	/** Sets the probabilities to there being an equal chance of getting any element from this ProbFunTree and it's descendants.
+	 * 
+	 */
+	public void clearAllProbs() {
+		this.probMap = (new ProbFunTree<T>(this.probMap.keySet().stream().collect(Collectors.toSet()), 1)).probMap;
+		for(ProbFunTree<T> p : this.children.values()) {
+			p.clearAllProbs();
 		}
 	}
 
@@ -250,91 +268,115 @@ public class ProbFunTree<T> implements Serializable {
 	 */
 	public void clearHistory() {
 		this.previousElement = null;
-		for(ProbFunTree<T> t : children.values()) {
+		for(ProbFunTree<T> t : this.children.values()) {
 			t.clearHistory();
 		}
 	}
 
-	/**        Adds an element to the parent of this ProbFunTree, making the probability equal to 1.0/n
-	 *         where n is the number of elements contained in the parent of this ProbFunTree.
-	 * @param  element as the element to add to the parent of this ProbFunTree.
+	/**        Adds an element to this ProbFunTree, making the probability equal to 1.0/n
+	 *         where n is the number of elements contained in this ProbFunTree.
+	 * @param  element as the element to add to this ProbFunTree.
+	 * @param  elements as the elements to be picked from after fun() returns element.
+	 *         It may be empty or null if no elements should be picked from after fun() is called.
+	 *         In this case, the probability function in this ProbFunTree will be used to generate 
+	 *         the next value based in the Objects it contains.
 	 * @throws NullPointerException if element is null.
 	 */
-	private void add(T element) {
+	public void add(T element, Set<T> elements) {
 		Objects.requireNonNull(element);
 		// Invariants secured
-		double probability = 1.0/(probMap.size());
-		if(!probMap.containsKey(element)) {
-			probMap.put(element, probability);
+		double probability = 1.0/(this.probMap.size());
+		if(!this.probMap.containsKey(element)) {
+			this.probMap.put(element, probability);
 		}
 		scaleProbs();
+		if(!this.children.isEmpty() && !this.children.containsKey(element) && elements!= null && !elements.isEmpty()) {
+			int layers = this.layer+2;
+			this.children.put(element, new ProbFunTree<>(elements, layers, this.layer+1, this));
+		}
 	}
 
-	/**        Adds an element to every node in this ProbFunTree, making the probability equal to 1.0/n
+	/**        Adds an element to every descendant of this ProbFunTree and this ProbFunTree, 
+	 *         making the probability equal to 1.0/n, 
 	 *         where n is the number of elements contained in this ProbFunTree.
-	 *         If the element already exists in a node, then the element will not be updated.
+	 *         If the element already exists in a node, then the element will not be overwritten.
 	 *         In order to overwrite old element probabilities, you must remove the element using removeFromAll().
-	 * @param  element as the element to add to every node.
+	 * @param  element as the element to add to this ProbFunTree and it's descendants.
+	 * @param  elements as the elements to be picked from after fun() returns element from the descendant with the greatest depth.
+	 *         It may be empty or null if no elements should be picked from after fun() is called.
+	 *         In this case, the probability function in this ProbFunTree will be used to generate 
+	 *         the next value based in the Objects it contains.
 	 * @throws NullPointerException if element is null.
 	 */
-	public void addToAll(T element) {
+	public void addToAll(T element, Set<T> elements) {
 		Objects.requireNonNull(element);
 		// Invariants secured
-		if(!children.isEmpty() && !children.containsKey(element)) {
-			children.put(element, new ProbFunTree<>(probMap.keySet(), layers-1, this));
-		}
-		add(element);
-		for(ProbFunTree<T> p : children.values()) {
-			p.addToAll(element);
+		add(element, elements);
+		for(Entry<T, ProbFunTree<T>> p : this.children.entrySet()) {
+			if(!p.getKey().equals(element)) {
+				p.getValue().addToAll(element, elements);
+			}
 		}
 	}
 
-	/**        Adds an element to the parent of this ProbFunTree with the specified probability.
-	 * @param  element as the element to add to the parent of this ProbFunTree.
-	 * @param  percent, between 0 and 1 exclusive, as the chance of the parent of this ProbFunTree returning element.
+	/**        Adds an element to this ProbFunTree with the specified probability.
+	 *         If the element exists in this ProbFunTree then it's probability will be overwritten with percent.
+	 * @param  element as the element to add to this ProbFunTree.
+	 * @param  elements as the elements to be picked from after fun() returns element.
+	 *         It may be empty or null if no elements should be picked from after fun() is called.
+	 *         In this case, the probability function in this ProbFunTree will be used to generate 
+	 *         the next value based in the Objects it contains.	 
+	 * @param  percent, between 0 and 1 exclusive, as the chance of this ProbFunTree returning element.
 	 * @throws NullPointerException if element is null.
 	 * @throws IllegalArgumentException if percent is not between 0.0 and 1.0 (exclusive).
 	 */
-	private void add(T element, double percent) {
+	public void add(T element, Set<T> elements, double percent) {
 		Objects.requireNonNull(element);
 		if(percent >= 1.0 || percent <= 0.0) {
 			throw new IllegalArgumentException("percent passed to add() is not between 0.0 and 1.0 (exclusive)");
 		}
 		// Invariants secured
 		double scale = (1.0-percent);
-		Set<Entry<T, Double>> probabilities = probMap.entrySet();
+		Set<Entry<T, Double>> probabilities = this.probMap.entrySet();
 		for(Entry<T, Double> e : probabilities) {
-			if(!e.getKey().equals(element)) {
-				e.setValue(e.getValue()*scale);
+			e.setValue(e.getValue()*scale);
+		}
+		this.probMap.put(element, percent);
+		scaleProbs();
+		if(!this.children.isEmpty() && !this.children.containsKey(element) && elements != null && !elements.isEmpty()) {
+			int layers = this.layer+2;
+			this.children.put(element, new ProbFunTree<>(elements, layers, this.layer+1, this));
+			for(ProbFunTree<T> t : this.children.get(element).children.values()) {
+				t.remove(element);
+				t.add(element, elements, percent);
 			}
 		}
-		if(!probMap.containsKey(element)) {
-			probMap.put(element, percent);
-		}
-		scaleProbs();
 	}
 
 	/**        Adds an element to every node in this ProbFunTree with the specified probability.
 	 *         If the element already exists in a node, then the element will not be updated.
 	 *         In order to overwrite old element probabilities, you must remove the element using removeFromAll().
 	 * @param  element as the element to add to every node.
+	 * @param  elements as the elements to be picked from after fun() returns element.
+	 *         It may be empty or null if no elements should be picked from after fun() is called.
+	 *         In this case, the probability function in this ProbFunTree will be used to generate 
+	 *         the next value based in the Objects it contains.	 
 	 * @param  percent between 0 and 1 exclusive, as the chance of 
 	 *         the parent and all it's children of this ProbFunTree returning element.
 	 * @throws NullPointerException if element is null.
 	 * @throws IllegalArgumentException if percent is not between 0.0 and 1.0 (exclusive).
 	 */
-	public void addToAll(T element, double percent) {
+	public void addToAll(T element, Set<T> elements, double percent) {
 		Objects.requireNonNull(element);
 		if(percent >= 1.0 || percent <= 0.0) {
 			throw new IllegalArgumentException("percent passed to add() is not between 0.0 and 1.0 (exclusive)");
 		}
 		// Invariants secured
-		if(!children.isEmpty() && !children.containsKey(element)) {
-			children.put(element, new ProbFunTree<>(probMap.keySet(), layers-1, this));
-		}
-		add(element, percent);
-		for(ProbFunTree<T> p : children.values()) {
-			p.addToAll(element, percent);
+		add(element, elements, percent);
+		for(Entry<T, ProbFunTree<T>> p : this.children.entrySet()) {
+			if(!p.getKey().equals(element)) {
+			p.getValue().addToAll(element, elements, percent);
+			}
 		}
 
 	}
@@ -352,16 +394,6 @@ public class ProbFunTree<T> implements Serializable {
 			throw new IllegalArgumentException("Must have at least 1 element in the choices passed to addLayer\n");
 		// Invariants secured
 		addLayer(this, choices);
-		incrementLayer();
-	}
-
-	private void incrementLayer() {
-		if(!children.isEmpty()) {
-			layers++;
-			for(ProbFunTree<T> pf : children.values()) {
-				pf.incrementLayer();
-			}
-		}
 	}
 
 	/**        Adds elements to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
@@ -369,12 +401,12 @@ public class ProbFunTree<T> implements Serializable {
 	 *         where n is the number of elements in choices.
 	 * @param  parent as the parent ProbFunTree to check the children of 
 	 *         to see if they are the descendants that have the greatest depth.
-	 *         If they are, the layer will be added.
+	 *         If they are, a layer will be added as a node below.
 	 * @param  choices as the elements to add to this ProbFunTree's descendants that have the greatest depth.
 	 * @throws NullPointerException if choices or parent is null.
 	 * @throws IllegalArgumentException if choices doesn't have at least one item.
 	 */
-	private void addLayer(ProbFunTree<T> parent, Set<T> choices) {
+	public void addLayer(ProbFunTree<T> parent, Set<T> choices) {
 		Objects.requireNonNull(parent);
 		Objects.requireNonNull(choices);
 		if(choices.size() < 1) 
@@ -383,7 +415,8 @@ public class ProbFunTree<T> implements Serializable {
 		for(ProbFunTree<T> child : parent.children.values()) {
 			if(child.children.isEmpty()) {
 				for(T t : child.probMap.keySet()) {
-					child.children.put(t, new ProbFunTree<T>(choices, 1, parent));
+					int layers = this.layer+2;
+					child.children.put(t, new ProbFunTree<T>(choices, layers, this.layer+1, parent));
 				}
 			} else {
 				addLayer(child, choices);
@@ -391,8 +424,9 @@ public class ProbFunTree<T> implements Serializable {
 		}
 	}
 
-	/**        Adds probMap keys to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
-	 *         making the probability of each element added equal to the values in probMap.
+	/**        Adds probMap keys as the elements to be returned when fun() is called 
+	 *         to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
+	 *         making the probability of each element added equal to the corresponding values in probMap.
 	 * @param  probMap as the Object-probability pairs where the probabilities must add up to 1.0 using double addition.
 	 * @throws NullPointerException if probMap is null.
 	 * @throws IllegalArgumentException if probMap doesn't have at least one entry, 
@@ -411,17 +445,20 @@ public class ProbFunTree<T> implements Serializable {
 		}
 		// Invariants secured
 		addLayer(this, probMap);
-		incrementLayer();
 	}
 
-	/**        Adds probMap keys to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
-	 *         making the probability of each element added equal to the probability values in probMap.
+	/**        Adds probMap keys as the elements to be returned when fun() is called 
+	 *         to a new layer that will be added to this ProbFunTree's descendants that have the greatest depth,
+	 *         making the probability of each element added equal to the corresponding values in probMap.
+	 * @param  parent as the parent ProbFunTree to check the children of 
+	 *         to see if they are the descendants that have the greatest depth.
+	 *         If they are, a layer will be added as a node below.
 	 * @param  probMap as the Object-probability pairs where the probabilities must add up to 1.0 using double addition.
 	 * @throws NullPointerException if parent or probMap is null.
 	 * @throws IllegalArgumentException if probMap doesn't have at least one entry, 
 	 *         or probMap values don't add up to 1.0 using double addition.
 	 */
-	private void addLayer(ProbFunTree<T> parent, Map<T, Double> probMap) {
+	public void addLayer(ProbFunTree<T> parent, Map<T, Double> probMap) {
 		Objects.requireNonNull(probMap);
 		Objects.requireNonNull(parent);
 		if(probMap.size() < 1) {
@@ -438,7 +475,8 @@ public class ProbFunTree<T> implements Serializable {
 		for(ProbFunTree<T> child : parent.children.values()) {
 			if(child.children.isEmpty()) {
 				for(T t : child.probMap.keySet()) {
-					child.children.put(t, new ProbFunTree<T>(probMap, 1, parent));
+					int layers = this.layer+2;
+					child.children.put(t, new ProbFunTree<T>(probMap, layers, this.layer+1, parent));
 				}
 			} else {
 				addLayer(child, probMap);
@@ -446,21 +484,21 @@ public class ProbFunTree<T> implements Serializable {
 		}
 	}
 
-	/**        Removes an element from the parent of this ProbFunTree unless there is only one element.
-	 * @param  element as the element to remove from the parent of this ProbFunTree.
+	/**        Removes an element from this ProbFunTree unless there is only one element.
+	 * @param  element as the element to remove from this ProbFunTree.
 	 * @return True if this ProbFunTree's parent contained the element and it was removed, else false.
 	 * @throws NullPointerException if element is null.
 	 */
-	private boolean remove(T element) {
+	public boolean remove(T element) {
 		Objects.requireNonNull(element);
 		if(parentSize() == 1) {
 			return false;
 		}
 		// Invariants secured
-		if(probMap.remove(element) == null) {
+		if(this.probMap.remove(element) == null) {
 			return false;
 		} else {
-			children.remove(element);
+			this.children.remove(element);
 		}
 		scaleProbs();
 		return true;
@@ -477,20 +515,20 @@ public class ProbFunTree<T> implements Serializable {
 			remove(element);
 		}
 		// Invariants secured
-		for(ProbFunTree<T> p : children.values()) {
+		for(ProbFunTree<T> p : this.children.values()) {
 			p.removeFromAll(element);
 		}
 	}
 
-	/** Removes elements with the lowest probability from the parent of this ProbFunTree.
+	/** Removes elements with the lowest probability of occurring when fun() is called from this ProbFunTree.
 	 *  If elements have the same maximum probability of occurring, no elements will be removed.
 	 *  If, after a removal, elements have the same maximum probability of occurring, no more elements will be removed.	 
 	 *  If parentSize() == 1, no elements will be removed.
 	 *  If parentSize() == 1 after a removal, no more elements will be removed.
 	 */
-	private void purge() {
-		double min = probMap.values().stream().parallel().min(Double::compare).orElse(-1.0);
-		double max = probMap.values().stream().parallel().max(Double::compare).orElse(-1.0);
+	public void prune() {
+		double min = this.probMap.values().stream().parallel().min(Double::compare).orElse(-1.0);
+		double max = this.probMap.values().stream().parallel().max(Double::compare).orElse(-1.0);
 		if(max == min) {
 			return;
 		}
@@ -499,14 +537,14 @@ public class ProbFunTree<T> implements Serializable {
 		} else if(parentSize() == 1) {
 			return;
 		} else {
-			Set<Entry<T, Double>> probabilities = probMap.entrySet();
+			Set<Entry<T, Double>> probabilities = this.probMap.entrySet();
 			Iterator<Entry<T, Double>> it = probabilities.iterator();
 			Entry<T, Double> e;
 			while(it.hasNext()) {
 				e = it.next();
-				if(e.getValue() <= min && e.getValue() < max-roundingError) {
+				if(e.getValue() <= min && e.getValue() < max-this.roundingError) {
 					it.remove();
-					children.remove(e.getKey());
+					this.children.remove(e.getKey());
 					if(parentSize() == 1) {
 						scaleProbs();
 						return;
@@ -517,39 +555,44 @@ public class ProbFunTree<T> implements Serializable {
 		}
 	}
 
-	/** Removes elements with the lowest probabilities in this ProbFunTree.
+	/** Removes elements with the lowest probability of occurring when fun() is called from this ProbFunTree.
 	 *  If elements have the same maximum probability of occurring, no elements will be removed.
 	 *  If, after a removal, elements have the same maximum probability of occurring, no elements will be removed.	
 	 *  If a node has one element, no elements will be removed.
 	 *  If a node has one element after a removal, no more elements will be removed.
 	 */
-	public void purgeAll() {
-		purge();
-		for(ProbFunTree<T> p : children.values()) {
-			p.purgeAll();
+	public void pruneAll() {
+		prune();
+		for(ProbFunTree<T> p : this.children.values()) {
+			p.pruneAll();
 		}
 	}
 
-	/**        Removes elements with probabilities less than or equal to percent chance of occurring
-	 *         from this ProbFunTree. 
+	/**        Removes elements with probabilities less than or equal to percent chance of occurring 
+	 *         when fun() is called from this ProbFunTree. 
 	 *         If a node has one element, no elements will be removed.
 	 *         If a node has one element after a removal, no more elements will be removed.
 	 * @param  percent as the upper limit, inclusive, of the probability of elements being returned to be removed from this ProbFunTree.
 	 * @throws IllegalArgumentException if percent is not between 0.0 and 1.0 (exclusive)
 	 */
-	private void purge(double percent) {
+	public void prune(double percent) {
 		if(percent >= 1.0 || percent <= 0.0) {
-			throw new IllegalArgumentException("percent passed to pruge() is not between 0.0 and 1.0 (exclusive)");
+			throw new IllegalArgumentException("percent passed to prune() is not between 0.0 and 1.0 (exclusive)");
 		}
 		// Invariants secured
-		double max = probMap.values().stream().parallel().max(Double::compare).orElse(-1.0);
-		double min = probMap.values().stream().parallel().min(Double::compare).orElse(-1.0);
+		double max = this.probMap.values().stream().parallel().max(Double::compare).orElse(-1.0);
+		double min = this.probMap.values().stream().parallel().min(Double::compare).orElse(-1.0);
 		if(parentSize() == 1 || (max <= percent && min == max)) {
 			return;
 		} else {
-			for(Entry<T, Double> e : probMap.entrySet()) {
-				if(e.getValue() <= min && e.getValue() < max-roundingError) {
-					remove(e.getKey());
+			Set<Entry<T, Double>> probabilities = this.probMap.entrySet();
+			Iterator<Entry<T, Double>> it = probabilities.iterator();
+			Entry<T, Double> e;
+			while(it.hasNext()) {
+				e = it.next();
+				if(e.getValue() <= min && e.getValue() < max-this.roundingError) {
+					it.remove();
+					this.children.remove(e.getKey());
 					if(parentSize() == 1) {
 						scaleProbs();
 						return;
@@ -560,27 +603,52 @@ public class ProbFunTree<T> implements Serializable {
 		}
 	}
 
-	/**        Removes elements with probabilities less than or equal to percent of being generated
-	 *         from this ProbFunTree. 
+	/**        Removes elements with probabilities less than or equal to percent chance of occurring 
+	 *         when fun() is called from this ProbFunTree and it's descendants. 
 	 *         If a node has one element, no elements will be removed.
 	 *         If a node has one element after a removal, no more elements will be removed.
 	 * @param  percent as the upper limit, inclusive, of the probability of elements being returned to be removed from this ProbFunTree.
 	 * @throws IllegalArgumentException if percent is not between 0.0 and 1.0 (exclusive)
 	 */
-	public void purgeAll(double percent) {
+	public void pruneAll(double percent) {
 		if(percent >= 1.0 || percent <= 0.0) {
 			throw new IllegalArgumentException("percent passed to pruge() is not between 0.0 and 1.0 (exclusive)");
 		}
 		// Invariants secured
 		if(parentSize() != 1) {
-			purge(percent);
+			prune(percent);
 		} 
-		for(ProbFunTree<T> p : children.values()) {
-			p.purgeAll(percent);
+		for(ProbFunTree<T> p : this.children.values()) {
+			p.pruneAll(percent);
 		}
 	}
 
-	/**        Adjust the probability to make element more likely to be returned when fun() is called from the parent of this ProbFunTree.
+	/**        Adds elementToAdd to the child node after traversing ifPresent. 
+	 *         If there is no child node, a new node will be created.
+	 *         If ifPresent is not part of this tree, elementToAdd will not be added.
+	 * @param  ifPresent as the List of Objects in the order to look for in this ProbFunTree.
+	 * @param  elementToAdd as the element to add to a the child node under the node containing the last elements in ifPresent.
+	 * @throws NullPointerException if ifPresent or elementToAdd are null.
+	 * @throws IllegalArgumentException if ifPresent is empty.
+	 */
+	public void addIfPresent(List<T> ifPresent, T elementToAdd) {
+		Objects.requireNonNull(ifPresent);
+		Objects.requireNonNull(elementToAdd);
+		if(ifPresent.isEmpty()) {
+			throw new IllegalArgumentException("Must have at least one entry in ifPresent passed to addIfPresent()");
+		}
+		// Invariants secured
+		Iterator<T> it = ifPresent.iterator();
+		ProbFunTree<T> pft = this.children.get(it.next());
+		while(it.hasNext() && pft != null) {
+			pft = pft.children.get(it.next());
+		}
+		if(pft != null) {
+			pft.add(elementToAdd, null);
+		}
+	}
+
+	/**        Adjust the probability to make element more likely to be returned when fun() is called from this ProbFunTree.
 	 * @param  element as the element to make appear more often
 	 * @param  percent as the percentage between 0 and 1 (exclusive), 
 	 *         of the probability of getting element to add to the probability.
@@ -588,31 +656,31 @@ public class ProbFunTree<T> implements Serializable {
 	 * @throws NullPointerException if element is null.
 	 * @throws IllegalArgumentException if the percent isn't between 0 and 1 exclusive.
 	 */
-	public synchronized double good(T element, double percent) {
+	public double good(T element, double percent) {
 		Objects.requireNonNull(element);
 		if(percent >= 1.0 || percent <= 0.0) {
 			throw new IllegalArgumentException("percent passed to good() is not between 0.0 and 1.0 (exclusive)");
 		}
 		// Invariants secured
-		Double oldProb = probMap.get(element);
+		Double oldProb = this.probMap.get(element);
 		double add;
 		if(oldProb > 0.5) 
 			add = ((1.0-oldProb)*percent);
 		else 
 			add = (oldProb*percent);
-		if(oldProb+add >= (1.0-roundingError))
+		if(oldProb+add >= (1.0-this.roundingError))
 			return oldProb;
 		double goodProbability = oldProb+add;
-		probMap.put(element, goodProbability);
+		this.probMap.put(element, goodProbability);
 		double leftover = 1.0-goodProbability;
 		double sumOfLeftovers = probSum() - goodProbability;
 		double leftoverScale = leftover/sumOfLeftovers;
-		for(Entry<T, Double> e : probMap.entrySet()) {
+		for(Entry<T, Double> e : this.probMap.entrySet()) {
 			e.setValue(e.getValue()*leftoverScale);
 		}
-		probMap.put(element, goodProbability);
+		this.probMap.put(element, goodProbability);
 		fixProbSum();
-		return probMap.get(element);
+		return this.probMap.get(element);
 	}
 
 	/**        Adjust the probabilities to make the elements more likely to be returned when fun() is called
@@ -624,7 +692,7 @@ public class ProbFunTree<T> implements Serializable {
 	 * @throws IllegalArgumentException if the percent isn't between 0 and 1 exclusive
 	 *         or elements is empty.
 	 */
-	public synchronized void good(List<T> elements, double percent) {
+	public void good(List<T> elements, double percent) {
 		Objects.requireNonNull(elements);
 		if(elements.isEmpty()){
 			throw new IllegalArgumentException("elements passed to good() must not be empty");
@@ -641,10 +709,10 @@ public class ProbFunTree<T> implements Serializable {
 		if(l.size() == 1) {
 			return;
 		}
-		children.get(l.remove(0)).good(l, percent);
+		this.children.get(l.remove(0)).good(l, percent);
 	}
 
-	/**        Adjust the probability to make element less likely to be returned when fun() is called from the parent of this ProbFunTree.
+	/**        Adjust the probability to make element less likely to be returned when fun() is called from this ProbFunTree.
 	 * @param  element as the element to make appear less often
 	 * @param  percent as the percentage between 0 and 1 (exclusive), 
 	 *         of the probability of getting element to subtract from the probability.
@@ -658,21 +726,21 @@ public class ProbFunTree<T> implements Serializable {
 			throw new IllegalArgumentException("percent passed to good() is not between 0.0 and 1.0 (exclusive)");
 		}
 		// Invariants secured
-		Double oldProb = probMap.get(element);
+		Double oldProb = this.probMap.get(element);
 		double sub = (oldProb*percent);
-		if(oldProb-sub <= roundingError)
+		if(oldProb-sub <= this.roundingError)
 			return oldProb;
 		double badProbability = oldProb-sub;
-		probMap.put(element, badProbability);
+		this.probMap.put(element, badProbability);
 		double leftover = 1.0-badProbability;
 		double sumOfLeftovers = probSum() - badProbability;
 		double leftoverScale = leftover/sumOfLeftovers;
-		for(Entry<T, Double> e : probMap.entrySet()) {
+		for(Entry<T, Double> e : this.probMap.entrySet()) {
 			e.setValue(e.getValue()*leftoverScale);
 		}
-		probMap.put(element, badProbability);
+		this.probMap.put(element, badProbability);
 		fixProbSum();
-		return probMap.get(element);
+		return this.probMap.get(element);
 	}
 
 	/**        Adjust the probabilities to make the elements less likely to be returned when fun() is called
@@ -701,7 +769,7 @@ public class ProbFunTree<T> implements Serializable {
 		if(l.size() == 1) {
 			return;
 		}
-		children.get(l.remove(0)).bad(l, percent);
+		this.children.get(l.remove(0)).bad(l, percent);
 	}
 
 	/**        Returns a randomly picked element from this ProbFunTree, based on the previously returned elements.
@@ -710,10 +778,10 @@ public class ProbFunTree<T> implements Serializable {
 	 */
 	public T fun() {
 		ArrayList<T> previousElements = new ArrayList<T>();
-		if(previousElement == null) {
+		if(this.previousElement == null) {
 			return nextValue();
-		} else if(!children.isEmpty()) {
-			ProbFunTree<T> pf = children.get(previousElement);
+		} else if(!this.children.isEmpty()) {
+			ProbFunTree<T> pf = this.children.get(this.previousElement);
 			T t = pf.previousElement;
 			while(t != null) {
 				previousElements.add(t);
@@ -725,16 +793,16 @@ public class ProbFunTree<T> implements Serializable {
 				}
 			}
 			Iterator<T> it = previousElements.iterator();
-			if(previousElements.size() == layers-1 && it.hasNext()) {
+			if(it.hasNext()) {
 				this.previousElement = it.next();
-				pf = children.get(previousElement);
+				pf = this.children.get(this.previousElement);
 				while(it.hasNext()) {
 					pf.previousElement = it.next();
 					pf = pf.children.get(pf.previousElement);
 				}
 				return pf.fun();
 			} else {
-				return children.get(previousElement).fun();
+				return this.children.get(this.previousElement).fun();
 			}
 		} else {
 			return nextValue();
@@ -745,10 +813,9 @@ public class ProbFunTree<T> implements Serializable {
 	 * @return the next generated value.
 	 */
 	private T nextValue() {
-		
 		double randomChoice = ThreadLocalRandom.current().nextDouble();
 		double sumOfProbabilities = 0.0;
-		Iterator<Entry<T, Double>> entries = probMap.entrySet().iterator();
+		Iterator<Entry<T, Double>> entries = this.probMap.entrySet().iterator();
 		T element = null;
 		Entry<T, Double> e;
 		while((randomChoice > sumOfProbabilities)) {
@@ -756,14 +823,14 @@ public class ProbFunTree<T> implements Serializable {
 			element = e.getKey();
 			sumOfProbabilities += e.getValue();
 		} 
-		previousElement = element;	
+		this.previousElement = element;	
 		return element;
 	}
 
-	/**        Returns the number of elements in the parent of this ProbFunTree.
-	 * @return the number of elements in the parent of this ProbFunTree.
+	/**        Returns the number of elements in this ProbFunTree.
+	 * @return the number of elements in this ProbFunTree.
 	 */
-	public int parentSize() {return probMap.size();}
+	public int parentSize() {return this.probMap.size();}
 
 	/**        Returns the number of elements in this whole ProbFunTree, 
 	 *         which includes the number of elements in the parent plus the number of elements in every descendant.
@@ -772,7 +839,7 @@ public class ProbFunTree<T> implements Serializable {
 	 */
 	public int size() {
 		int size = parentSize();
-		for(ProbFunTree<T> p : children.values()) {
+		for(ProbFunTree<T> p : this.children.values()) {
 			size += p.size();
 		}
 		return size;
@@ -788,8 +855,8 @@ public class ProbFunTree<T> implements Serializable {
 		for(Entry<T, ProbFunTree<T>> e : probFunTree.children.entrySet()) {
 			this.children.put(e.getKey(), e.getValue().clone());
 		}
-		if(!children.isEmpty()){
-			for(ProbFunTree<T> e : children.values()) {
+		if(!this.children.isEmpty()){
+			for(ProbFunTree<T> e : this.children.values()) {
 				e.parent = this;
 			}
 		}
@@ -802,34 +869,34 @@ public class ProbFunTree<T> implements Serializable {
 
 	@Override
 	public String toString() {
-		if(id == 0) {
-			id = System.identityHashCode(this);
+		if(this.id == 0) {
+			this.id = System.identityHashCode(this);
 		}
 		StringBuilder sb = new StringBuilder();
 		sb.append("PF ");
-		sb.append(id);
+		sb.append(this.id);
 		sb.append(": [");
-		for(Entry<T, Double> e : probMap.entrySet()) {
+		for(Entry<T, Double> e : this.probMap.entrySet()) {
 			sb.append("[");
 			sb.append(e.getKey());
 			sb.append(" = ");
 			sb.append(e.getValue()*100.0);
 			sb.append("%]");
 		}
-		if(!children.isEmpty()) {
+		if(!this.children.isEmpty()) {
 			sb.append("]\n");
 			for(int i = 0; i < 15; i++) {
 				sb.append(" ");
 			}
 		}
-		if(parent != null) {
+		if(this.parent != null) {
 			for(int i = 0; i < 31; i++) {
 				sb.append(" ");
 			}
 		}
 		sb.append("Children: [");
 		int count = 0;
-		for(Entry<T, ProbFunTree<T>> e : children.entrySet()) {
+		for(Entry<T, ProbFunTree<T>> e : this.children.entrySet()) {
 			count++;
 			sb.append("[");
 			sb.append(e.getKey());
@@ -837,23 +904,23 @@ public class ProbFunTree<T> implements Serializable {
 			sb.append(e.getValue());
 			sb.delete(sb.length()-1, sb.length());
 			sb.append("]\n");
-			if(parent != null && parent.parent != null && count == children.size()) {
+			if(this.parent != null && this.parent.parent != null && count == this.children.size()) {
 				sb.delete(sb.length()-2, sb.length());
 				sb.append("\n");
 			}
 			for(int i = 0; i < 26; i++) {
 				sb.append(" ");
 			}
-			if(parent != null) {
+			if(this.parent != null) {
 				for(int i = 0; i < 31; i++) {
 					sb.append(" ");
 				}
 			}
 		}
-		if(children.isEmpty()) {
+		if(this.children.isEmpty()) {
 			sb.delete(sb.length()-11, sb.length());
 
-			if(parent != null) {
+			if(this.parent != null) {
 				sb.delete(sb.length()-31, sb.length());
 			}
 			sb.append("]");
@@ -861,7 +928,7 @@ public class ProbFunTree<T> implements Serializable {
 			sb.append("\n");
 		} else {
 			sb.delete(sb.length()-28, sb.length());
-			if(parent != null) {
+			if(this.parent != null) {
 				sb.delete(sb.length()-31, sb.length());
 			}
 			sb.append("]]");
@@ -872,10 +939,10 @@ public class ProbFunTree<T> implements Serializable {
 
 	@Override
 	public int hashCode() {
-		if(id == 0) {
-			id = System.identityHashCode(this);
+		if(this.id == 0) {
+			this.id = System.identityHashCode(this);
 		}
-		return id;
+		return this.id;
 	}
 
 }
